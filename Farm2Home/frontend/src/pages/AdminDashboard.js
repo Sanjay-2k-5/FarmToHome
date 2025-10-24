@@ -45,7 +45,7 @@ const AdminDashboard = () => {
   return (
     <Container className="mt-4">
       <Row className="mb-4">
-        <Col className="d-flex justify-content-between align-items-center">
+        <Col className="d-flex justify-content-between align-items-center text-color-black">
           <h1>Admin Dashboard {user ? <Badge bg="success" className="ms-2">Admin</Badge> : null}</h1>
           <Button variant="outline-danger" onClick={handleLogout}>Logout</Button>
         </Col>

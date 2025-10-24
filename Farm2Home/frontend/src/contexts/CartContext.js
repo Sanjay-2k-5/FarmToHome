@@ -118,6 +118,17 @@ export const CartProvider = ({ children }) => {
           return true;
         } catch (error) {
           console.error('Failed to update cart:', error.response?.data || error.message);
+          // Even if server request fails, try to update local state for better UX
+          const updatedItems = [...currentItems];
+          if (existingItemIndex >= 0) {
+            updatedItems[existingItemIndex].qty = newQty;
+          } else {
+            updatedItems.push({
+              ...product,
+              qty: newQty
+            });
+          }
+          setItems(updatedItems);
           return false;
         }
       } else {
@@ -138,33 +149,49 @@ export const CartProvider = ({ children }) => {
       console.error('Error adding item to cart:', error);
       return false;
     }
-  });
+  }, [isAuthenticated, items, loadCart]);
 
-  const removeItem = async (id) => {
+  const removeItem = useCallback(async (id) => {
     if (!id) return false;
     
     try {
       if (isAuthenticated) {
         // For authenticated users, update server first
         try {
-          await api.delete(`/api/cart/${id}`);
-          // Refresh cart from server
-          await loadCart();
+          const response = await api.delete(`/api/cart/${id}`);
+          // Update local state with the server response
+          if (response.data && Array.isArray(response.data.items)) {
+            setItems(response.data.items);
+          } else {
+            // If response format is unexpected, refresh the entire cart
+            await loadCart();
+          }
           return true;
         } catch (error) {
           console.error('Failed to remove item from cart:', error);
+          // Even if server request fails, try to update local state
+          setItems(prev => prev.filter(item => item._id !== id));
           return false;
         }
       } else {
         // For guests, update local state directly
-        setItems(prev => prev.filter(item => item._id !== id));
+        setItems(prev => {
+          const newItems = prev.filter(item => item._id !== id);
+          // Save to localStorage for guest users
+          try {
+            localStorage.setItem('cart_guest', JSON.stringify(newItems));
+          } catch (e) {
+            console.error('Error saving cart to local storage:', e);
+          }
+          return newItems;
+        });
         return true;
       }
     } catch (error) {
       console.error('Error removing item from cart:', error);
       return false;
     }
-  };
+  }, [isAuthenticated, loadCart]);
 
   const clear = async () => {
     try {
@@ -190,57 +217,74 @@ export const CartProvider = ({ children }) => {
     }
   };
 
-  const updateQty = async (id, qty, stock) => {
+  const updateQty = useCallback(async (id, qty, stock) => {
     try {
-      const itemToUpdate = items.find(item => item._id === id);
-      if (!itemToUpdate) return false;
-      
-      const newQty = clampQty(qty, stock ?? itemToUpdate.stock);
+      setItems(prevItems => {
+        const itemToUpdate = prevItems.find(item => item._id === id);
+        if (!itemToUpdate) return prevItems;
+        
+        const newQty = clampQty(qty, stock ?? itemToUpdate.stock);
+        
+        // Optimistically update the UI
+        const updatedItems = prevItems.map(item => 
+          item._id === id ? { ...item, qty: newQty } : item
+        );
+        
+        // Save to localStorage for guest users
+        if (!isAuthenticated) {
+          try {
+            localStorage.setItem('cart_guest', JSON.stringify(updatedItems));
+          } catch (e) {
+            console.error('Error saving cart to local storage:', e);
+          }
+        }
+        
+        return updatedItems;
+      });
       
       if (isAuthenticated) {
-        // For authenticated users, update server first
+        // For authenticated users, update server after UI update
         try {
-          await api.put(`/api/cart/${id}`, { qty: newQty });
-          // Refresh cart from server
+          await api.put(`/api/cart/${id}`, { qty });
+          // Refresh cart from server to ensure consistency
           await loadCart();
-          return true;
         } catch (error) {
-          console.error('Failed to update quantity:', error);
+          console.error('Failed to update quantity on server:', error);
+          // On error, reload cart to sync with server
+          await loadCart();
           return false;
         }
-      } else {
-        // For guests, update local state directly
-        setItems(prev => 
-          prev.map(item => 
-            item._id === id ? { ...item, qty: newQty } : item
-          )
-        );
-        return true;
       }
+      
+      return true;
     } catch (error) {
       console.error('Error updating quantity:', error);
       return false;
     }
-  };
+  }, [isAuthenticated, loadCart]);
 
-  const increment = async (id) => {
+  const increment = useCallback(async (id) => {
     const item = items.find(p => p._id === id);
     if (!item) return false;
     
     const newQty = clampQty((item.qty || 0) + 1, item.stock);
+    if (newQty === item.qty) return false; // No change needed
+    
     return await updateQty(id, newQty, item.stock);
-  };
+  }, [items, updateQty]);
 
-  const decrement = async (id) => {
+  const decrement = useCallback(async (id) => {
     const item = items.find(p => p._id === id);
     if (!item) return false;
     
     const newQty = clampQty((item.qty || 0) - 1, item.stock);
+    if (newQty === item.qty) return false; // No change needed
+    
     if (newQty <= 0) {
       return await removeItem(id);
     }
     return await updateQty(id, newQty, item.stock);
-  };
+  }, [items, updateQty, removeItem]);
 
   // Sync guest cart with server when user logs in
   useEffect(() => {

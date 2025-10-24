@@ -56,11 +56,13 @@ const Navbar = () => {
               <FaShoppingCart className="nav-icon" /> Products
             </Link>
           </li>
-          <li className="nav-item">
-            <Link to="/cart" className="nav-links" onClick={closeMobileMenu}>
-              <FaShoppingCart className="nav-icon" /> Cart{summary.distinct > 0 && <span className="badge bg-primary ms-1">{summary.distinct}</span>}
-            </Link>
-          </li>
+          {!isAdmin() && (
+            <li className="nav-item">
+              <Link to="/cart" className="nav-links" onClick={closeMobileMenu}>
+                <FaShoppingCart className="nav-icon" /> Cart{summary.distinct > 0 && <span className="badge bg-primary ms-1">{summary.distinct}</span>}
+              </Link>
+            </li>
+          )}
           <li className="nav-item">
             <Link to="/blog" className="nav-links" onClick={closeMobileMenu}>
               <FaBlog className="nav-icon" /> Blog
