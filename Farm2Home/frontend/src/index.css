@@ -8,8 +8,12 @@
 }
 
 body {
+<<<<<<< HEAD
   /* background: #628078 */
   background:black;
+=======
+  background: #f5f5f5; /* Light gray background */
+>>>>>>> 9516d0b (Add local files and apply local edits (branch: muthu-sbranch))
 }
 
 h1,
@@ -28,3 +32,18 @@ ul {
   text-decoration: none;
 }
 
+<<<<<<< HEAD
+=======
+/* Add padding to all pages except home page to prevent navbar overlap */
+body:not(.home-page) {
+  padding-top: 80px; /* Match this with your navbar height */
+}
+
+/* For mobile, adjust the padding */
+@media screen and (max-width: 768px) {
+  body:not(.home-page) {
+    padding-top: 60px; /* Slightly less padding on mobile if needed */
+  }
+}
+
+>>>>>>> 9516d0b (Add local files and apply local edits (branch: muthu-sbranch))
