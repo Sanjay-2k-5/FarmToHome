@@ -25,6 +25,10 @@
   },
   "devDependencies": {
     "@express-rate-limit/tsconfig": "^1.0.2",
+<<<<<<< HEAD
     "nodemon": "^2.0.22"
+=======
+    "nodemon": "^3.1.10"
+>>>>>>> 9516d0b (Add local files and apply local edits (branch: muthu-sbranch))
   }
 }
