@@ -79,6 +79,11 @@ export const AuthProvider = ({ children }) => {
     return user?.role === 'admin';
   };
 
+  // Check if user is delivery personnel
+  const isDelivery = () => {
+    return user?.role === 'delivery';
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -90,6 +95,7 @@ export const AuthProvider = ({ children }) => {
         logout,
         isAuthenticated,
         isAdmin,
+        isDelivery,
       }}
     >
       {!loading && children}

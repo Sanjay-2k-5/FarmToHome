@@ -179,9 +179,10 @@ const Register = () => {
                   >
                     <option value="user">Regular User</option>
                     <option value="farmer">Farmer/Seller</option>
+                    <option value="delivery">Delivery Personnel</option>
                   </Form.Select>
                   <Form.Text className="text-muted">
-                    Select 'Farmer/Seller' if you want to sell your products on our platform.
+                    Select 'Farmer/Seller' to sell products, or 'Delivery Personnel' to deliver orders.
                   </Form.Text>
                 </Form.Group>
 

@@ -12,13 +12,20 @@ const generateToken = (id) => {
 exports.register = async (req, res) => {
   try {
     const { fname, lname, email, password, role } = req.body;
+    
+    console.log('Registration request received:', { fname, lname, email, role });
 
     let user = await User.findOne({ email });
-    if (user) return res.status(400).json({ message: 'User already exists' });
+    if (user) {
+      console.log('Registration failed: User already exists', { email });
+      return res.status(400).json({ message: 'User already exists' });
+    }
 
     // Ensure the role is one of the allowed values
-    const allowedRoles = ['user', 'admin', 'farmer'];
+    const allowedRoles = ['user', 'admin', 'farmer', 'delivery'];
     const userRole = allowedRoles.includes(role) ? role : 'user';
+    
+    console.log('Creating user with role:', userRole);
     
     user = await User.create({ 
       fname, 
@@ -28,14 +35,17 @@ exports.register = async (req, res) => {
       role: userRole 
     });
 
-    res.status(201).json({
+    const responseData = {
       _id: user._id,
       fname: user.fname,
       lname: user.lname,
       email: user.email,
       role: user.role,
       token: generateToken(user._id),
-    });
+    };
+    
+    console.log('Registration successful, sending response:', responseData);
+    res.status(201).json(responseData);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
@@ -48,21 +58,31 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
+    console.log('Login attempt for email:', email);
 
     const user = await User.findOne({ email }).select('+password');
-    if (!user) return res.status(401).json({ message: 'Invalid email or password' });
+    if (!user) {
+      console.log('Login failed: User not found', { email });
+      return res.status(401).json({ message: 'Invalid email or password' });
+    }
 
     const isMatch = await user.comparePassword(password);
-    if (!isMatch) return res.status(401).json({ message: 'Invalid email or password' });
+    if (!isMatch) {
+      console.log('Login failed: Invalid password', { email });
+      return res.status(401).json({ message: 'Invalid email or password' });
+    }
 
-    res.json({
+    const responseData = {
       _id: user._id,
       fname: user.fname,
       lname: user.lname,
       email: user.email,
       role: user.role,
       token: generateToken(user._id),
-    });
+    };
+    
+    console.log('Login successful, sending response:', responseData);
+    res.json(responseData);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });

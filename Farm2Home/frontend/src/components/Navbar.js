@@ -63,6 +63,12 @@ const Navbar = () => {
                 <FaTachometerAlt className="nav-icon" /> Farmer Dashboard
               </Link>
             </li>
+          ) : isAuthenticated() && user?.role === 'delivery' ? (
+            <li className="nav-item">
+              <Link to="/delivery" className="nav-links" onClick={closeMobileMenu}>
+                <FaTachometerAlt className="nav-icon" /> Delivery Dashboard
+              </Link>
+            </li>
           ) : (!isAdmin || !isAdmin()) && (
             <li className="nav-item">
               <Link to="/cart" className="nav-links" onClick={closeMobileMenu}>

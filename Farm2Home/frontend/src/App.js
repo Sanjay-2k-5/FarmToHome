@@ -16,6 +16,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import CartPage from "./pages/NewCartPage";
 import CheckoutPage from "./pages/CheckoutPage";
 import FarmerDashboard from "./pages/farmer/FarmerDashboard";
+import DeliveryDashboard from "./pages/delivery/DeliveryDashboard";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -47,9 +48,10 @@ function App() {
               <Route element={<ProtectedRoute />}>
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/profile" element={<Profile />} />
-                {/* Admin area (component will re-check role) */}
-                <Route path="/admin" element={<AdminDashboard />} />
-                {/* Farmer Dashboard */}
+                {/* Role-based dashboards */}
+                <Route path="/admin/*" element={<AdminDashboard />} />
+                <Route path="/farmer/*" element={<FarmerDashboard />} />
+                <Route path="/delivery/*" element={<DeliveryDashboard />} />
                 <Route path="/farmer/dashboard" element={<FarmerDashboard />} />
               </Route>
 
