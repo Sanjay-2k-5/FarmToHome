@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "checkJs": false,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "baseUrl": "."
+  },
+  "typeAcquisition": {
+    "enable": false
+  },
+  "include": [
+    "Agro_MERN/frontend/src",
+    "Agro_MERN/backend/src"
+  ],
+  "exclude": [
+    "node_modules",
+    "**/node_modules/*",
+    "Agro_MERN/backend/node_modules",
+    "Agro_MERN/frontend/node_modules"
+  ]
+}
