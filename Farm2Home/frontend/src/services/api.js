@@ -41,4 +41,7 @@ api.interceptors.response.use(
   }
 );
 
+// Order related API calls
+export const getDeliveredOrdersRevenue = () => api.get('/api/orders/revenue');
+
 export default api;

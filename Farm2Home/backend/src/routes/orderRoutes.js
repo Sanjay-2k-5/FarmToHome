@@ -4,8 +4,10 @@ const { protect } = require('../middleware/auth');
 const { 
   createOrder, 
   getMyOrders, 
-  getOrderById 
+  getOrderById,
+  getDeliveredOrdersRevenue 
 } = require('../controllers/orderController');
+const { admin } = require('../middleware/auth');
 
 // Protect all routes
 router.use(protect);
@@ -18,5 +20,8 @@ router.get('/my-orders', getMyOrders);
 
 // Get order by ID
 router.get('/:id', getOrderById);
+
+// Admin routes
+router.get('/revenue', admin, getDeliveredOrdersRevenue);
 
 module.exports = router;

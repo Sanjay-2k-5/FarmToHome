@@ -191,7 +191,13 @@
     transform: translateY(0);
   }
 }
-
+ .nav-links:focus,
+.nav-links:active,
+.nav-links:visited {
+  background: green;
+  box-shadow: none !important;
+  outline: none !important;
+}
 .nav-item {
   animation: fadeIn 0.3s ease-in-out;
   animation-fill-mode: both;

@@ -17,6 +17,8 @@ import CartPage from "./pages/NewCartPage";
 import CheckoutPage from "./pages/CheckoutPage";
 import FarmerDashboard from "./pages/farmer/FarmerDashboard";
 import DeliveryDashboard from "./pages/delivery/DeliveryDashboard";
+import MyOrdersPage from "./pages/MyOrdersPage";
+import OrderDetailPage from "./pages/OrderDetailPage";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -27,37 +29,41 @@ function App() {
     <ErrorBoundary>
       <AuthProvider>
         <CartProvider>
-          <div className="d-flex flex-column min-vh-100">
+          <div className="app-container d-flex flex-column min-vh-100">
             <Navbar />
-            <main className="flex-grow-1">
+            <main className="main-content flex-grow-1">
               <ToastContainer position="top-right" autoClose={5000} />
-              <Routes>
-              {/* Default to Login */}
-              <Route path="/" element={<Navigate to="/login" replace />} />
+              <div className="content-wrapper">
+                <Routes>
+                  {/* Default to Login */}
+                  <Route path="/" element={<Navigate to="/login" replace />} />
 
-              {/* Public Routes */}
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/cart" element={<CartPage />} />
-              <Route path="/home" element={<Home />} />
-              <Route path="/blog" element={<Blog />} />
-              <Route path="/products" element={<ProductPage />} />
-              <Route path="/checkout" element={<CheckoutPage />} />
+                  {/* Public Routes */}
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/register" element={<Register />} />
+                  <Route path="/cart" element={<CartPage />} />
+                  <Route path="/home" element={<Home />} />
+                  <Route path="/blog" element={<Blog />} />
+                  <Route path="/products" element={<ProductPage />} />
+                  <Route path="/checkout" element={<CheckoutPage />} />
 
-              {/* Protected Routes - Only accessible when logged in */}
-              <Route element={<ProtectedRoute />}>
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/profile" element={<Profile />} />
-                {/* Role-based dashboards */}
-                <Route path="/admin/*" element={<AdminDashboard />} />
-                <Route path="/farmer/*" element={<FarmerDashboard />} />
-                <Route path="/delivery/*" element={<DeliveryDashboard />} />
-                <Route path="/farmer/dashboard" element={<FarmerDashboard />} />
-              </Route>
+                  {/* Protected Routes - Only accessible when logged in */}
+                  <Route element={<ProtectedRoute />}>
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/profile" element={<Profile />} />
+                    <Route path="/my-orders" element={<MyOrdersPage />} />
+                    <Route path="/orders/:id" element={<OrderDetailPage />} />
+                    {/* Role-based dashboards */}
+                    <Route path="/admin/*" element={<AdminDashboard />} />
+                    <Route path="/farmer/*" element={<FarmerDashboard />} />
+                    <Route path="/delivery/*" element={<DeliveryDashboard />} />
+                    <Route path="/farmer/dashboard" element={<FarmerDashboard />} />
+                  </Route>
 
-              {/* Redirect unknown routes to login */}
-              <Route path="*" element={<Navigate to="/login" replace />} />
-              </Routes>
+                  {/* Redirect unknown routes to login */}
+                  <Route path="*" element={<Navigate to="/login" replace />} />
+                </Routes>
+              </div>
             </main>
             <Footer />
           </div>

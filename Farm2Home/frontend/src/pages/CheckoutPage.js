@@ -134,7 +134,7 @@ const CheckoutPage = () => {
         >
           <FaArrowLeft className="me-2" /> Back to Cart
         </Button>
-        <h2>Checkout</h2>
+        <h2 style={{ color: 'black' }}>Checkout</h2>
       </div>
       
       {error && <Alert variant="danger" onClose={() => setError('')} dismissible>{error}</Alert>}

@@ -114,7 +114,7 @@ const FarmerDashboard = () => {
     <Container className="py-4">
       <Row className="mb-4">
         <Col>
-          <h2>Farmer Dashboard</h2>
+          <h2 style={{ color: 'black' }}>Farmer Dashboard</h2>
           <p className="text-muted">Manage incoming orders</p>
         </Col>
       </Row>

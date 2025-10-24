@@ -25,7 +25,7 @@ const Dashboard = () => {
       <Row className="mb-4">
         <Col>
           <div className="d-flex justify-content-between align-items-center">
-            <h1>Welcome, {user.fname}!</h1>
+            <h1 style={{color : 'black'}}>Welcome, {user.fname}!</h1>
             <Button variant="outline-danger" onClick={handleLogout}>
               Logout
             </Button>

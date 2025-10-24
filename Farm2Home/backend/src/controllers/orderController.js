@@ -3,6 +3,39 @@ const User = require('../models/User');
 const Product = require('../models/Product');
 const mongoose = require('mongoose');
 
+// @desc    Get total revenue from delivered orders
+// @route   GET /api/orders/revenue
+// @access  Private/Admin
+exports.getDeliveredOrdersRevenue = async (req, res) => {
+  try {
+    const result = await Order.aggregate([
+      { $match: { status: 'delivered' } },
+      {
+        $group: {
+          _id: null,
+          totalRevenue: { $sum: '$total' },
+          orderCount: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const stats = result[0] || { totalRevenue: 0, orderCount: 0 };
+    
+    res.status(200).json({
+      success: true,
+      totalRevenue: stats.totalRevenue,
+      orderCount: stats.orderCount
+    });
+  } catch (error) {
+    console.error('Error fetching revenue stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching revenue statistics',
+      error: error.message
+    });
+  }
+};
+
 // @desc    Create new order
 // @route   POST /api/orders
 // @access  Private

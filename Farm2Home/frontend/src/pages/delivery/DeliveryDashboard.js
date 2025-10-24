@@ -92,7 +92,7 @@ const DeliveryDashboard = () => {
   if (loading) {
     return (
       <Container className="py-5">
-        <h2>Delivery Dashboard</h2>
+        <h2 style={{ color: 'black' }}>Delivery Dashboard</h2>
         <p>Loading orders...</p>
       </Container>
     );
@@ -100,7 +100,7 @@ const DeliveryDashboard = () => {
 
   return (
     <Container className="py-4">
-      <h2 className="mb-4">Delivery Dashboard</h2>
+      <h2 className="mb-4" style={{ color: 'black' }}>Delivery Dashboard</h2>
       
       {orders.length === 0 ? (
         <Card>

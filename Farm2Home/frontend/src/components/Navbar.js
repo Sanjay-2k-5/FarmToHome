@@ -1,7 +1,7 @@
 import "./Navbar.css";
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { FaBars, FaTimes, FaShoppingCart, FaHome, FaLeaf, FaBlog, FaUserCircle, FaSignInAlt, FaSignOutAlt, FaUserCog, FaTachometerAlt } from "react-icons/fa";
+import { useNavigate, useLocation, Link } from "react-router-dom";
+import { FaBars, FaTimes, FaShoppingCart, FaHome, FaLeaf, FaBlog, FaUserCircle, FaSignInAlt, FaSignOutAlt, FaUserCog, FaTachometerAlt, FaClipboardList } from "react-icons/fa";
 import { useAuth } from "../contexts/AuthContext";
 import { useCart } from '../contexts/NewCartContext';
 
@@ -12,6 +12,15 @@ const Navbar = () => {
   const { items = [] } = useCart?.() || {};
   const itemCount = items?.reduce((total, item) => total + (item?.qty || 0), 0) || 0;
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Helper function to check if a path matches the current route
+  const isActive = (path) => {
+    if (path === '/') {
+      return location.pathname === path;
+    }
+    return location.pathname.startsWith(path);
+  };
 
   const handleClick = () => setClick(!click);
   const closeMobileMenu = () => setClick(false);
@@ -90,6 +99,13 @@ const Navbar = () => {
                   <FaUserCircle className="nav-icon" /> Dashboard
                 </Link>
               </li>
+              {user?.role === 'user' && (
+                <li className="nav-item">
+                  <Link to="/my-orders" className="nav-links" onClick={closeMobileMenu}>
+                    <FaClipboardList className="nav-icon" /> My Orders
+                  </Link>
+                </li>
+              )}
               {isAdmin() && (
                 <li className="nav-item">
                   <Link to="/admin" className="nav-links" onClick={closeMobileMenu}>
