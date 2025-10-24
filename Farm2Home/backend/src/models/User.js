@@ -2,8 +2,6 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 
-<<<<<<< HEAD
-=======
 const cartItemSchema = new mongoose.Schema({
   product: {
     type: mongoose.Schema.Types.ObjectId,
@@ -24,7 +22,6 @@ const cartItemSchema = new mongoose.Schema({
   imageUrl: String
 }, { _id: false });
 
->>>>>>> 9516d0b (Add local files and apply local edits (branch: muthu-sbranch))
 const userSchema = new mongoose.Schema(
   {
     fname: {
@@ -56,10 +53,7 @@ const userSchema = new mongoose.Schema(
       enum: ['user', 'admin'],
       default: 'user',
     },
-<<<<<<< HEAD
-=======
     cart: [cartItemSchema],
->>>>>>> 9516d0b (Add local files and apply local edits (branch: muthu-sbranch))
     isVerified: {
       type: Boolean,
       default: false,

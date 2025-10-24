@@ -9,17 +9,13 @@
     "enable": false
   },
   "include": [
-    "Agro_MERN/frontend/src",
-    "Agro_MERN/backend/src"
+    "Farm2Home/frontend/src",
+    "Farm2Home/backend/src"
   ],
   "exclude": [
     "node_modules",
     "**/node_modules/*",
-    "Agro_MERN/backend/node_modules",
-    "Agro_MERN/frontend/node_modules"
+    "Farm2Home/backend/node_modules",
+    "Farm2Home/frontend/node_modules"
   ]
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 9516d0b (Add local files and apply local edits (branch: muthu-sbranch))

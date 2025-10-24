@@ -58,11 +58,7 @@ const Navbar = () => {
           </li>
           <li className="nav-item">
             <Link to="/cart" className="nav-links" onClick={closeMobileMenu}>
-<<<<<<< HEAD
-              <FaShoppingCart className="nav-icon" /> Cart{summary.distinct > 0 ? <span className="badge bg-primary ms-1">{summary.distinct}</span> : null}
-=======
               <FaShoppingCart className="nav-icon" /> Cart{summary.distinct > 0 && <span className="badge bg-primary ms-1">{summary.distinct}</span>}
->>>>>>> 9516d0b (Add local files and apply local edits (branch: muthu-sbranch))
             </Link>
           </li>
           <li className="nav-item">
