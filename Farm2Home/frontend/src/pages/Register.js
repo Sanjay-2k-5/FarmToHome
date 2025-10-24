@@ -10,13 +10,14 @@ const Register = () => {
     email: '',
     password: '',
     confirmPassword: '',
+    role: 'user', // Default role is 'user'
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const { register, error } = useAuth();
   const navigate = useNavigate();
 
-  const { fname, lname, email, password, confirmPassword } = formData;
+  const { fname, lname, email, password, confirmPassword, role } = formData;
 
   const handleChange = (e) => {
     setFormData({
@@ -54,22 +55,22 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!validateForm()) return;
-    
-    setLoading(true);
-    
-    const { success } = await register({
-      fname,
-      lname,
-      email,
-      password,
-    });
-    
-    if (success) {
-      navigate('/dashboard');
+    if (validateForm()) {
+      try {
+        setLoading(true);
+        await register({ fname, lname, email, password, role });
+        // Redirect based on role
+        if (role === 'farmer') {
+          navigate('/farmer/dashboard');
+        } else {
+          navigate('/dashboard');
+        }
+      } catch (err) {
+        console.error('Registration error:', err);
+      } finally {
+        setLoading(false);
+      }
     }
-    
-    setLoading(false);
   };
 
   return (
@@ -154,19 +155,34 @@ const Register = () => {
                   </Form.Control.Feedback>
                 </Form.Group>
 
-                <Form.Group className="mb-4" controlId="confirmPassword">
+                <Form.Group controlId="confirmPassword" className="mb-3">
                   <Form.Label>Confirm Password</Form.Label>
                   <Form.Control
                     type="password"
                     name="confirmPassword"
                     value={confirmPassword}
                     onChange={handleChange}
-                    placeholder="Confirm your password"
                     isInvalid={!!errors.confirmPassword}
+                    placeholder="Confirm your password"
                   />
                   <Form.Control.Feedback type="invalid">
                     {errors.confirmPassword}
                   </Form.Control.Feedback>
+                </Form.Group>
+
+                <Form.Group controlId="role" className="mb-3">
+                  <Form.Label>Account Type</Form.Label>
+                  <Form.Select 
+                    name="role"
+                    value={role}
+                    onChange={handleChange}
+                  >
+                    <option value="user">Regular User</option>
+                    <option value="farmer">Farmer/Seller</option>
+                  </Form.Select>
+                  <Form.Text className="text-muted">
+                    Select 'Farmer/Seller' if you want to sell your products on our platform.
+                  </Form.Text>
                 </Form.Group>
 
                 <Button 

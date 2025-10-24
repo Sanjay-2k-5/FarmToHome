@@ -1,15 +1,16 @@
 import "./Navbar.css";
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { FaBars, FaTimes, FaShoppingCart, FaHome, FaLeaf, FaBlog, FaUserCircle, FaSignInAlt, FaSignOutAlt, FaUserCog } from "react-icons/fa";
+import { FaBars, FaTimes, FaShoppingCart, FaHome, FaLeaf, FaBlog, FaUserCircle, FaSignInAlt, FaSignOutAlt, FaUserCog, FaTachometerAlt } from "react-icons/fa";
 import { useAuth } from "../contexts/AuthContext";
-import { useCart } from "../contexts/CartContext";
+import { useCart } from '../contexts/NewCartContext';
 
 const Navbar = () => {
   const [click, setClick] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const { isAuthenticated, isAdmin, logout } = useAuth();
-  const { summary } = useCart();
+  const { isAuthenticated, isAdmin, logout, user } = useAuth();
+  const { items = [] } = useCart?.() || {};
+  const itemCount = items?.reduce((total, item) => total + (item?.qty || 0), 0) || 0;
   const navigate = useNavigate();
 
   const handleClick = () => setClick(!click);
@@ -56,10 +57,17 @@ const Navbar = () => {
               <FaShoppingCart className="nav-icon" /> Products
             </Link>
           </li>
-          {!isAdmin() && (
+          {isAuthenticated() && user?.role === 'farmer' ? (
+            <li className="nav-item">
+              <Link to="/farmer/dashboard" className="nav-links" onClick={closeMobileMenu}>
+                <FaTachometerAlt className="nav-icon" /> Farmer Dashboard
+              </Link>
+            </li>
+          ) : (!isAdmin || !isAdmin()) && (
             <li className="nav-item">
               <Link to="/cart" className="nav-links" onClick={closeMobileMenu}>
-                <FaShoppingCart className="nav-icon" /> Cart{summary.distinct > 0 && <span className="badge bg-primary ms-1">{summary.distinct}</span>}
+                <FaShoppingCart className="nav-icon" /> Cart
+                {itemCount > 0 && <span className="badge bg-primary ms-1">{itemCount}</span>}
               </Link>
             </li>
           )}

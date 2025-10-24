@@ -1,12 +1,12 @@
 import './Pro.css';
 import React, { useState } from 'react';
-import { useCart } from '../contexts/CartContext';
+import { useCart } from '../contexts/NewCartContext';
 import { FaShoppingCart, FaCheck, FaExclamationTriangle } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 const ProCard = ({ product }) => {
-  const { addItem } = useCart();
+  const { addOrUpdateItem } = useCart();
   const [isAdding, setIsAdding] = useState(false);
   const [added, setAdded] = useState(false);
   const [error, setError] = useState(null);
@@ -24,7 +24,7 @@ const ProCard = ({ product }) => {
     setError(null);
     
     try {
-      const success = await addItem({
+      const success = await addOrUpdateItem({
         _id: product._id,
         name: product.name,
         price: product.price,

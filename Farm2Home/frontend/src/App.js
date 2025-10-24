@@ -1,7 +1,7 @@
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
-import { CartProvider } from "./contexts/CartContext";
+import { CartProvider } from "./contexts/NewCartContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -13,19 +13,24 @@ import Blog from "./routes/Blog";
 import Profile from "./routes/Profile";
 import ProductPage from "./routes/ProductPage";
 import AdminDashboard from "./pages/AdminDashboard";
-import CartPage from "./pages/CartPage";
+import CartPage from "./pages/NewCartPage";
+import CheckoutPage from "./pages/CheckoutPage";
+import FarmerDashboard from "./pages/farmer/FarmerDashboard";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
+import ErrorBoundary from "./components/ErrorBoundary";
 import "./index.css";
 
 function App() {
   return (
-    <AuthProvider>
-      <CartProvider>
-        <div className="d-flex flex-column min-vh-100">
-          <Navbar />
-          <main className="flex-grow-1">
-            <Routes>
+    <ErrorBoundary>
+      <AuthProvider>
+        <CartProvider>
+          <div className="d-flex flex-column min-vh-100">
+            <Navbar />
+            <main className="flex-grow-1">
+              <ToastContainer position="top-right" autoClose={5000} />
+              <Routes>
               {/* Default to Login */}
               <Route path="/" element={<Navigate to="/login" replace />} />
 
@@ -36,6 +41,7 @@ function App() {
               <Route path="/home" element={<Home />} />
               <Route path="/blog" element={<Blog />} />
               <Route path="/products" element={<ProductPage />} />
+              <Route path="/checkout" element={<CheckoutPage />} />
 
               {/* Protected Routes - Only accessible when logged in */}
               <Route element={<ProtectedRoute />}>
@@ -43,27 +49,19 @@ function App() {
                 <Route path="/profile" element={<Profile />} />
                 {/* Admin area (component will re-check role) */}
                 <Route path="/admin" element={<AdminDashboard />} />
+                {/* Farmer Dashboard */}
+                <Route path="/farmer/dashboard" element={<FarmerDashboard />} />
               </Route>
 
               {/* Redirect unknown routes to login */}
               <Route path="*" element={<Navigate to="/login" replace />} />
-            </Routes>
-          </main>
-          <Footer />
-          <ToastContainer 
-            position="top-right"
-            autoClose={3000}
-            hideProgressBar={false}
-            newestOnTop={false}
-            closeOnClick
-            rtl={false}
-            pauseOnFocusLoss
-            draggable
-            pauseOnHover
-          />
-        </div>
-      </CartProvider>
-    </AuthProvider>
+              </Routes>
+            </main>
+            <Footer />
+          </div>
+        </CartProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

@@ -181,9 +181,9 @@ exports.removeItem = async (req, res) => {
       return res.status(401).json({ message: 'Not authenticated' });
     }
     
-    const { id } = req.params;
+    const { id: productId } = req.params;
     
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+    if (!mongoose.Types.ObjectId.isValid(productId)) {
       return res.status(400).json({ message: 'Valid product ID is required' });
     }
     
@@ -196,35 +196,55 @@ exports.removeItem = async (req, res) => {
     // Initialize cart if it doesn't exist
     if (!user.cart) {
       user.cart = [];
+      await user.save();
+      return res.json({ items: [] });
     }
     
-    // Find and remove the item
-    const initialLength = user.cart.length;
-    user.cart = user.cart.filter(
-      item => item.product.toString() !== id
+    // Find the index of the item to remove
+    const itemIndex = user.cart.findIndex(
+      item => item.product && item.product.toString() === productId
     );
     
-    if (user.cart.length === initialLength) {
+    if (itemIndex === -1) {
       return res.status(404).json({ message: 'Item not found in cart' });
     }
+    
+    // Remove the item from the cart
+    user.cart.splice(itemIndex, 1);
     
     // Save the updated user with cart
     await user.save();
     
-    // Format the response
-    const responseItems = user.cart.map(item => ({
-      _id: item.product,
-      name: item.name,
-      price: item.price,
-      stock: item.stock,
-      imageUrl: item.imageUrl,
-      description: item.description,
-      qty: item.qty
-    }));
+    // If cart is empty after removal, return empty array
+    if (user.cart.length === 0) {
+      return res.json({ items: [], message: 'Item removed from cart' });
+    }
+    
+    // Get updated cart with product details
+    const updatedCart = [];
+    for (const item of user.cart) {
+      try {
+        const product = await Product.findById(item.product);
+        if (product) {
+          updatedCart.push({
+            _id: product._id,
+            name: item.name || product.name,
+            price: item.price || product.price,
+            stock: product.stock,
+            imageUrl: item.imageUrl || product.imageUrl || '',
+            description: product.description || '',
+            qty: item.qty || 1
+          });
+        }
+      } catch (error) {
+        console.error(`Error processing product ${item.product}:`, error);
+      }
+    }
     
     res.json({ 
+      success: true,
       message: 'Item removed from cart',
-      items: responseItems
+      items: updatedCart
     });
     
   } catch (error) {
@@ -239,29 +259,42 @@ exports.removeItem = async (req, res) => {
 exports.updateQty = async (req, res) => {
   try {
     if (!req.user || !req.user._id) {
-      return res.status(401).json({ message: 'Not authenticated' });
+      return res.status(401).json({ 
+        success: false,
+        message: 'Not authenticated' 
+      });
     }
     
-    const { qty } = req.body;
+    // Get quantity from query parameters instead of request body
+    const qty = req.query.qty || req.body.qty;
     const { id } = req.params;
     
     // Validate input
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: 'Valid product ID is required' });
+      return res.status(400).json({ 
+        success: false,
+        message: 'Valid product ID is required' 
+      });
     }
     
-    const parsedQty = Math.max(0, Math.min(Number(qty) || 1, 100));
+    const parsedQty = Math.max(0, Math.min(parseInt(qty, 10) || 1, 100));
     
     // Find the product to get stock
     const product = await Product.findById(id);
     if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
+      return res.status(404).json({ 
+        success: false,
+        message: 'Product not found' 
+      });
     }
     
     // Get user with cart
     const user = await User.findById(req.user._id);
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ 
+        success: false,
+        message: 'User not found' 
+      });
     }
     
     // Initialize cart if it doesn't exist
@@ -271,11 +304,23 @@ exports.updateQty = async (req, res) => {
     
     // Find the item in cart
     const itemIndex = user.cart.findIndex(
-      item => item.product.toString() === id
+      item => item.product && item.product.toString() === id
     );
     
     if (itemIndex === -1) {
-      return res.status(404).json({ message: 'Item not found in cart' });
+      return res.status(404).json({ 
+        success: false,
+        message: 'Item not found in cart',
+        items: user.cart.map(item => ({
+          _id: item.product,
+          name: item.name,
+          price: item.price,
+          stock: item.stock,
+          imageUrl: item.imageUrl,
+          description: item.description,
+          qty: item.qty
+        }))
+      });
     }
     
     if (parsedQty <= 0) {
@@ -283,13 +328,20 @@ exports.updateQty = async (req, res) => {
       user.cart.splice(itemIndex, 1);
     } else {
       // Update quantity and ensure it doesn't exceed stock
-      user.cart[itemIndex].qty = Math.min(parsedQty, product.stock);
-      // Update other product details in case they've changed
-      user.cart[itemIndex].price = product.price;
-      user.cart[itemIndex].name = product.name;
-      user.cart[itemIndex].imageUrl = product.imageUrl || product.img || '';
-      user.cart[itemIndex].description = product.description || '';
-      user.cart[itemIndex].stock = product.stock;
+      const newQty = Math.min(parsedQty, product.stock);
+      if (newQty < 1) {
+        // If the calculated quantity is less than 1, remove the item
+        user.cart.splice(itemIndex, 1);
+      } else {
+        // Otherwise, update the item
+        user.cart[itemIndex].qty = newQty;
+        // Update other product details in case they've changed
+        user.cart[itemIndex].price = product.price;
+        user.cart[itemIndex].name = product.name;
+        user.cart[itemIndex].imageUrl = product.imageUrl || product.img || '';
+        user.cart[itemIndex].description = product.description || '';
+        user.cart[itemIndex].stock = product.stock;
+      }
     }
     
     // Save the updated user with cart
@@ -307,6 +359,7 @@ exports.updateQty = async (req, res) => {
     }));
     
     res.json({ 
+      success: true,
       message: 'Cart updated successfully',
       items: responseItems
     });

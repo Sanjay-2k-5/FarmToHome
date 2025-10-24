@@ -155,13 +155,26 @@ export const CartProvider = ({ children }) => {
     if (!id) return false;
     
     try {
+      // Store current items for potential rollback
+      const currentItems = [...items];
+      
+      // Update UI immediately for better UX
+      setItems(prev => prev.filter(item => item._id !== id));
+      
       if (isAuthenticated) {
-        // For authenticated users, update server first
         try {
+          // Use the correct endpoint with productId parameter
           const response = await api.delete(`/api/cart/${id}`);
-          // Update local state with the server response
+          
+          // Update local state with the server response if available
           if (response.data && Array.isArray(response.data.items)) {
             setItems(response.data.items);
+            // Update local storage with the latest cart
+            try {
+              localStorage.setItem(`cart_${user._id}`, JSON.stringify(response.data.items));
+            } catch (e) {
+              console.error('Error updating local storage:', e);
+            }
           } else {
             // If response format is unexpected, refresh the entire cart
             await loadCart();
@@ -169,22 +182,18 @@ export const CartProvider = ({ children }) => {
           return true;
         } catch (error) {
           console.error('Failed to remove item from cart:', error);
-          // Even if server request fails, try to update local state
-          setItems(prev => prev.filter(item => item._id !== id));
+          // Revert to previous state on error
+          setItems(currentItems);
           return false;
         }
       } else {
-        // For guests, update local state directly
-        setItems(prev => {
-          const newItems = prev.filter(item => item._id !== id);
-          // Save to localStorage for guest users
-          try {
-            localStorage.setItem('cart_guest', JSON.stringify(newItems));
-          } catch (e) {
-            console.error('Error saving cart to local storage:', e);
-          }
-          return newItems;
-        });
+        // For guests, just update local storage
+        try {
+          const guestItems = items.filter(item => item._id !== id);
+          localStorage.setItem('cart_guest', JSON.stringify(guestItems));
+        } catch (e) {
+          console.error('Error updating guest cart in localStorage:', e);
+        }
         return true;
       }
     } catch (error) {

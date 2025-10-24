@@ -16,7 +16,17 @@ exports.register = async (req, res) => {
     let user = await User.findOne({ email });
     if (user) return res.status(400).json({ message: 'User already exists' });
 
-    user = await User.create({ fname, lname, email, password, role: role || 'user' });
+    // Ensure the role is one of the allowed values
+    const allowedRoles = ['user', 'admin', 'farmer'];
+    const userRole = allowedRoles.includes(role) ? role : 'user';
+    
+    user = await User.create({ 
+      fname, 
+      lname, 
+      email, 
+      password, 
+      role: userRole 
+    });
 
     res.status(201).json({
       _id: user._id,
