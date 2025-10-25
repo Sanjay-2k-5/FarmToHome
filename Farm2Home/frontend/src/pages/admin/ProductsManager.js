@@ -7,6 +7,9 @@ const ProductsManager = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const [saveSuccess, setSaveSuccess] = useState('');
   const [form, setForm] = useState({ 
     name: '', 
     price: 0, 
@@ -34,16 +37,49 @@ const ProductsManager = () => {
   }, []);
 
   const handleSave = async () => {
+    setSaveError('');
+    setSaveSuccess('');
+    // Basic frontend validation
+    if (!form.name || form.name.trim() === '') {
+      setSaveError('Product name is required');
+      return;
+    }
+    const price = parseFloat(form.price);
+    if (!Number.isFinite(price) || price <= 0) {
+      setSaveError('Price must be a positive number');
+      return;
+    }
+    const stock = parseInt(form.stock) || 0;
+
+    setSaving(true);
     try {
+      const payload = {
+        name: form.name,
+        description: form.description,
+        price,
+        stock,
+        imageUrl: form.imageUrl,
+        category: form.category,
+        isActive: !!form.isActive
+      };
+
+      let res;
       if (editing) {
-        await api.put(`/api/products/${editing._id}`, form);
+        res = await api.put(`/api/products/${editing._id}`, payload);
       } else {
-        await api.post('/api/products', form);
+        res = await api.post('/api/products', payload);
       }
+
+      setSaveSuccess(editing ? 'Product updated successfully' : 'Product created successfully');
       setShowModal(false);
+      // reload list
       await loadProducts();
     } catch (err) {
       console.error('Error saving product:', err);
+      const serverMsg = err?.response?.data?.message || err?.message || 'Failed to save product';
+      setSaveError(serverMsg);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -147,6 +183,12 @@ const ProductsManager = () => {
         </Modal.Header>
         <Modal.Body>
           <Form>
+            {saveError && (
+              <div className="alert alert-danger">{saveError}</div>
+            )}
+            {saveSuccess && (
+              <div className="alert alert-success">{saveSuccess}</div>
+            )}
             <Form.Group className="mb-3">
               <Form.Label>Product Name</Form.Label>
               <Form.Control
@@ -224,11 +266,15 @@ const ProductsManager = () => {
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowModal(false)}>
+          <Button variant="secondary" onClick={() => setShowModal(false)} disabled={saving}>
             Cancel
           </Button>
-          <Button variant="primary" onClick={handleSave}>
-            {editing ? 'Update' : 'Create'} Product
+          <Button variant="primary" onClick={handleSave} disabled={saving}>
+            {saving ? (
+              <>
+                <Spinner animation="border" size="sm" className="me-2" /> Saving...
+              </>
+            ) : (editing ? 'Update' : 'Create')}
           </Button>
         </Modal.Footer>
       </Modal>

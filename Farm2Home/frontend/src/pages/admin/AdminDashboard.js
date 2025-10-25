@@ -27,6 +27,14 @@ const AdminDashboard = () => {
         api.get('/api/admin/stats/orders').catch(e => ({ data: { pending: 0, change: '0%' } }))
       ]);
 
+      // Debug logs to help trace missing values
+      console.log('Admin stats responses:', {
+        products: productsRes?.data,
+        users: usersRes?.data,
+        revenue: revenueRes?.data,
+        orders: ordersRes?.data
+      });
+
       setStats([
         { 
           title: 'Total Products', 

@@ -162,29 +162,61 @@ export const CartProvider = ({ children }) => {
   const updateQty = useCallback(async (productId, newQty) => {
     try {
       setError(null);
-      const quantity = Math.max(1, newQty);
+      // Ensure quantity is at least 0.5 and a valid number
+      const quantity = Math.max(0.5, parseFloat(newQty));
       
+      if (isNaN(quantity)) {
+        throw new Error('Invalid quantity');
+      }
+
       if (isAuthenticated) {
-        // The backend expects the quantity in the URL as a query parameter
-        const { data } = await api.put(`/api/cart/${productId}?qty=${quantity}`);
-        if (data?.items) {
-          setItems(data.items);
-          // Update local storage for offline consistency
-          if (user?._id) {
-            localStorage.setItem(`cart_${user._id}`, JSON.stringify(data.items));
-          }
-          return true;
+        // Make a copy of current items to avoid state mutation
+        const currentItems = [...items];
+        const itemIndex = currentItems.findIndex(i => i._id === productId);
+
+        if (itemIndex === -1) {
+          console.warn('Item not found in cart, refreshing cart...');
+          await loadCart(); // Refresh cart and try again
+          return false;
         }
-        // If we get here, the response format was unexpected
-        throw new Error('Unexpected response from server');
+        
+        const item = currentItems[itemIndex];
+        
+        // Ensure we don't exceed available stock
+        if (item.stock && quantity > item.stock) {
+          throw new Error(`Only ${item.stock} items available in stock`);
+        }
+        
+        try {
+          // Send the request with quantity in the request body
+          const { data } = await api.put(`/api/cart/${productId}`, { qty: quantity });
+          
+          if (data?.items) {
+            setItems(data.items);
+            // Update local storage for offline consistency
+            if (user?._id) {
+              localStorage.setItem(`cart_${user._id}`, JSON.stringify(data.items));
+            }
+            return true;
+          }
+          throw new Error('Unexpected response from server');
+        } catch (error) {
+          console.error('API Error:', error.response?.data || error.message);
+          throw error;
+        }
       } else {
         // For guest users, update local state and storage
         setItems(prevItems => {
-          const updatedItems = prevItems.map(item => 
-            item._id === productId 
-              ? { ...item, qty: Math.min(quantity, item.stock) } 
-              : item
-          );
+          const updatedItems = prevItems.map(item => {
+            if (item._id === productId) {
+              const newQuantity = Math.min(
+                Math.max(0.5, quantity), // Minimum 0.5
+                item.stock || Infinity   // Don't exceed stock if available
+              );
+              return { ...item, qty: newQuantity };
+            }
+            return item;
+          });
           localStorage.setItem('cart_guest', JSON.stringify(updatedItems));
           return updatedItems;
         });
@@ -192,10 +224,11 @@ export const CartProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('Error updating cart quantity:', error);
-      setError(error.response?.data?.message || 'Failed to update quantity');
+      setError(error.response?.data?.message || error.message || 'Failed to update quantity');
+      throw error; // Re-throw to allow handling in the component
       return false;
     }
-  }, [isAuthenticated, user?._id]);
+  }, [isAuthenticated, user?._id, items, loadCart]);
 
   // Clear cart
   const clearCart = useCallback(async () => {

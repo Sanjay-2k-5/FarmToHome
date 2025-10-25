@@ -180,7 +180,14 @@ exports.removeItem = async (req, res) => {
     if (!req.user || !req.user._id) {
       return res.status(401).json({ message: 'Not authenticated' });
     }
-    
+    // Debug logging: show incoming identifiers for easier tracing
+    console.log('removeItem called', {
+      userId: req.user?._id,
+      params: req.params,
+      query: req.query,
+      body: req.body
+    });
+
     const { id: productId } = req.params;
     
     if (!mongoose.Types.ObjectId.isValid(productId)) {
@@ -264,7 +271,14 @@ exports.updateQty = async (req, res) => {
         message: 'Not authenticated' 
       });
     }
-    
+    // Debug logging: print incoming request data to help diagnose 400 errors
+    console.log('updateQty called', {
+      userId: req.user?._id,
+      params: req.params,
+      query: req.query,
+      body: req.body
+    });
+
     // Get quantity from query parameters instead of request body
     const qty = req.query.qty || req.body.qty;
     const { id } = req.params;
@@ -277,14 +291,30 @@ exports.updateQty = async (req, res) => {
       });
     }
     
-    const parsedQty = Math.max(0, Math.min(parseInt(qty, 10) || 1, 100));
-    
-    // Find the product to get stock
+    // Find the product first to validate stock
     const product = await Product.findById(id);
     if (!product) {
       return res.status(404).json({ 
         success: false,
         message: 'Product not found' 
+      });
+    }
+    
+    // Convert quantity to a number and ensure it's between 0.5 and 1000
+    const parsedQty = parseFloat(qty);
+    if (isNaN(parsedQty) || parsedQty < 0.5) {
+      return res.status(400).json({
+        success: false,
+        message: 'Quantity must be at least 0.5'
+      });
+    }
+    
+    // Ensure quantity doesn't exceed 1000 units or available stock
+    const maxQty = Math.min(1000, product.stock || 1000);
+    if (parsedQty > maxQty) {
+      return res.status(400).json({
+        success: false,
+        message: `Maximum quantity is ${maxQty} units`
       });
     }
     

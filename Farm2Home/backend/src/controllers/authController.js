@@ -2,8 +2,15 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const crypto = require('crypto');
 
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' });
+const generateToken = (user) => {
+  return jwt.sign(
+    { 
+      id: user._id,
+      role: user.role 
+    }, 
+    process.env.JWT_SECRET, 
+    { expiresIn: '30d' }
+  );
 };
 
 // @desc    Register a new user
@@ -41,7 +48,7 @@ exports.register = async (req, res) => {
       lname: user.lname,
       email: user.email,
       role: user.role,
-      token: generateToken(user._id),
+      token: generateToken(user),
     };
     
     console.log('Registration successful, sending response:', responseData);
@@ -78,7 +85,7 @@ exports.login = async (req, res) => {
       lname: user.lname,
       email: user.email,
       role: user.role,
-      token: generateToken(user._id),
+      token: generateToken(user),
     };
     
     console.log('Login successful, sending response:', responseData);

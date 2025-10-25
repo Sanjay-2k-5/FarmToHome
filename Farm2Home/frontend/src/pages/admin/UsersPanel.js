@@ -29,15 +29,14 @@ const UsersPanel = () => {
       const response = await api.get('/api/admin/users');
       const usersData = response.data?.users || response.data || [];
       
-      const processedUsers = usersData.map(user => {
-        const userRole = roles.some(r => r.value === user.role) ? user.role : 'user';
-        return {
-          ...user,
-          role: userRole,
-          fname: user.fname || user.name?.split(' ')[0] || 'User',
-          lname: user.lname || user.name?.split(' ').slice(1).join(' ') || ''
-        };
-      });
+      // Use role value directly from the backend user document.
+      // Do not coerce unknown roles to 'user' here — let getRoleInfo handle unknown labels/colors.
+      const processedUsers = usersData.map(user => ({
+        ...user,
+        role: user.role || 'user',
+        fname: user.fname || user.name?.split(' ')[0] || 'User',
+        lname: user.lname || user.name?.split(' ').slice(1).join(' ') || ''
+      }));
       
       setUsers(processedUsers);
     } catch (err) {

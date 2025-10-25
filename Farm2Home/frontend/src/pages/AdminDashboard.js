@@ -3,13 +3,22 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Container, Row, Col, Card, Button, Badge, Tab, Nav, Spinner, Form, Table, Modal, InputGroup, ButtonGroup } from 'react-bootstrap';
 import api, { getRevenueStats, processRevenue, getDeliveredOrdersRevenue } from '../services/api';
+import UsersPanel from './admin/UsersPanel';
 
 const AdminDashboard = () => {
   const { user, isAdmin, logout } = useAuth();
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState(null);
+  const [stats, setStats] = useState({
+    userCount: 0,
+    activeUsers: 0,
+    productCount: 0,
+    totalRevenue: 0,
+    totalOrders: 0,
+    totalItemsSold: 0,
+    lastUpdated: null
+  });
   const [sales, setSales] = useState([]);
   const [range, setRange] = useState('30');
 
@@ -56,30 +65,48 @@ const AdminDashboard = () => {
       ) : (
         <>
           <Row className="mb-4">
-            <Col md={4} className="mb-3">
+            <Col md={3} className="mb-3">
               <Card className="h-100">
                 <Card.Body>
-                  <Card.Title>Users</Card.Title>
-                  <Card.Text className="display-6 fw-bold">{stats?.userCount ?? 0}</Card.Text>
-                  <div className="text-muted">Total registered users</div>
+                  <Card.Title>Total Users</Card.Title>
+                  <Card.Text className="display-6 fw-bold">{stats.userCount}</Card.Text>
+                  <div className="text-muted">Registered users</div>
                 </Card.Body>
               </Card>
             </Col>
-            <Col md={4} className="mb-3">
+            <Col md={3} className="mb-3">
               <Card className="h-100">
                 <Card.Body>
                   <Card.Title>Products</Card.Title>
-                  <Card.Text className="display-6 fw-bold">{stats?.productCount ?? 0}</Card.Text>
-                  <div className="text-muted">Active products</div>
+                  <Card.Text className="display-6 fw-bold">{stats.productCount}</Card.Text>
+                  <div className="text-muted">Active products in store</div>
                 </Card.Body>
               </Card>
             </Col>
-            <Col md={4} className="mb-3">
+            <Col md={3} className="mb-3">
               <Card className="h-100">
                 <Card.Body>
                   <Card.Title>Revenue</Card.Title>
-                  <Card.Text className="display-6 fw-bold">₹{Number(stats?.totalRevenue || 0).toFixed(2)}</Card.Text>
-                  <div className="text-muted">Total sales</div>
+                  <Card.Text className="display-6 fw-bold">
+                    ₹{Number(stats.totalRevenue).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                  </Card.Text>
+                  <div className="text-muted">Total revenue from {stats.totalOrders} orders</div>
+                </Card.Body>
+              </Card>
+            </Col>
+            <Col md={3} className="mb-3">
+              <Card className="h-100">
+                <Card.Body>
+                  <Card.Title>Items Sold</Card.Title>
+                  <Card.Text className="display-6 fw-bold">{stats.totalItemsSold}</Card.Text>
+                  <div className="text-muted">
+                    {stats.totalOrders} orders
+                    {stats.lastUpdated && (
+                      <small className="d-block mt-1 text-muted">
+                        Updated: {new Date(stats.lastUpdated).toLocaleTimeString()}
+                      </small>
+                    )}
+                  </div>
                 </Card.Body>
               </Card>
             </Col>
@@ -339,76 +366,7 @@ const ProductsManager = () => {
   );
 };
 
-// Users panel component
-const UsersPanel = () => {
-  const [loading, setLoading] = useState(true);
-  const [users, setUsers] = useState([]);
-
-  const load = async () => {
-    setLoading(true);
-    try {
-      const { data } = await api.get('/api/admin/users');
-      setUsers(data.users || []);
-    } catch (e) {
-      console.error('Load users failed', e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { load(); }, []);
-
-  return (
-    <Card>
-      <Card.Body>
-        <div className="d-flex justify-content-between align-items-center mb-3">
-          <Card.Title className="mb-0">Users</Card.Title>
-        </div>
-        {loading ? (
-          <div className="d-flex justify-content-center py-5"><Spinner animation="border" /></div>
-        ) : (
-          <div className="table-responsive">
-            <Table hover>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Role</th>
-                  <th className="text-end">Orders</th>
-                  <th className="text-end">Items</th>
-                  <th className="text-end">Total Spent</th>
-                  <th>Recent Purchases</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map(u => (
-                  <tr key={u._id}>
-                    <td>{u.name}</td>
-                    <td>{u.email}</td>
-                    <td><Badge bg={u.role === 'admin' ? 'success' : 'secondary'}>{u.role}</Badge></td>
-                    <td className="text-end">{u.orders || 0}</td>
-                    <td className="text-end">{u.items || 0}</td>
-                    <td className="text-end">₹{Number(u.totalSpent || 0).toFixed(2)}</td>
-                    <td>
-                      {(u.recentPurchases || []).slice(0, 3).map((r, idx) => (
-                        <Badge bg="light" text="dark" key={idx} className="me-1">
-                          {r.productName} ×{r.quantity}
-                        </Badge>
-                      ))}
-                    </td>
-                  </tr>
-                ))}
-                {users.length === 0 && (
-                  <tr><td colSpan={7} className="text-center text-muted">No users</td></tr>
-                )}
-              </tbody>
-            </Table>
-          </div>
-        )}
-      </Card.Body>
-    </Card>
-  );
-};
+// UsersPanel is implemented in its own file and fetches roles from the backend
 
 // Revenue management panel
 const RevenuePanel = () => {
@@ -538,10 +496,12 @@ const RevenuePanel = () => {
         <Card.Body>
           <Card.Title>Pending Revenue</Card.Title>
           {loading ? (
-            <div className="d-flex justify-content-center py-5">
-              <Spinner animation="border" />
+            <div className="d-flex justify-content-center align-items-center" style={{ height: '80vh' }}>
+              <Spinner animation="border" role="status">
+                <span className="visually-hidden">Loading...</span>
+              </Spinner>
             </div>
-          ) : revenueData.pending.length > 0 ? (
+          ) : (
             <Table hover responsive>
               <thead>
                 <tr>
@@ -579,7 +539,7 @@ const RevenuePanel = () => {
                 ))}
               </tbody>
             </Table>
-          ) : (
+          )  (
             <div className="text-center text-muted py-4">
               No pending revenue records
             </div>

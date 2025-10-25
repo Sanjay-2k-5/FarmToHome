@@ -39,30 +39,51 @@ exports.getRoles = async (req, res) => {
 // @access  Private/Admin
 exports.getStats = async (req, res) => {
   try {
-    const [userCount, productCount, salesAgg] = await Promise.all([
-      User.countDocuments({ role: 'user' }),
-      Product.countDocuments(),
-      Sale.aggregate([
+    console.log('Fetching admin stats...');
+    
+    // Get all users count (excluding admins)
+    const [userCount, productCount, salesAgg, activeUsers] = await Promise.all([
+      User.countDocuments({ role: { $ne: 'admin' } }), // Count all non-admin users
+      Product.countDocuments({ isActive: true }), // Only count active products
+      Order.aggregate([
+        { 
+          $match: { status: 'delivered' } // Only count delivered orders for revenue
+        },
         {
           $group: {
             _id: null,
-            totalRevenue: { $sum: '$total' },
-            totalUnits: { $sum: '$quantity' },
-            txCount: { $sum: 1 },
-          },
-        },
+            totalRevenue: { $sum: '$totalAmount' },
+            orderCount: { $sum: 1 },
+            totalItems: { $sum: { $size: '$items' } }
+          }
+        }
       ]),
+      User.countDocuments({ 
+        lastActive: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }, // Active in last 30 days
+        role: { $ne: 'admin' }
+      })
     ]);
 
-    const totals = salesAgg[0] || { totalRevenue: 0, totalUnits: 0, txCount: 0 };
+    console.log('Stats query results:', { userCount, productCount, salesAgg, activeUsers });
 
-    res.json({
+    const salesData = salesAgg[0] || { 
+      totalRevenue: 0, 
+      orderCount: 0, 
+      totalItems: 0 
+    };
+
+    const stats = {
       userCount,
+      activeUsers,
       productCount,
-      totalRevenue: totals.totalRevenue,
-      totalUnitsSold: totals.totalUnits,
-      transactions: totals.txCount,
-    });
+      totalRevenue: salesData.totalRevenue,
+      totalOrders: salesData.orderCount,
+      totalItemsSold: salesData.totalItems,
+      lastUpdated: new Date()
+    };
+
+    console.log('Sending stats:', stats);
+    res.json(stats);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
@@ -246,8 +267,8 @@ exports.getOrderStats = async (req, res) => {
 // @access  Private/Admin
 exports.getUsersDetailed = async (req, res) => {
   try {
-    // Fetch base user info (only regular users)
-    const users = await User.find({ role: 'user' }, 'fname lname email role createdAt').lean();
+    // Fetch base user info (all users)
+    const users = await User.find({}, 'fname lname email role createdAt').lean();
 
     // Aggregate sales by user if Sale has a `user` field (if not, aggregation will yield no per-user results)
     const salesByUser = await Sale.aggregate([

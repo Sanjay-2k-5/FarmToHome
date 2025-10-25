@@ -242,12 +242,25 @@ exports.updateOrderStatus = async (req, res) => {
 exports.getMyOrders = async (req, res) => {
   try {
     const orders = await Order.find({ user: req.user._id })
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean(); // Convert to plain JavaScript objects
+    
+    // Calculate total amount for all orders
+    const totalAmount = orders.reduce((sum, order) => sum + (order.total || 0), 0);
     
     res.json({
       success: true,
       count: orders.length,
-      orders
+      totalAmount,
+      orders: orders.map(order => ({
+        ...order,
+        // Ensure we have all necessary fields
+        total: order.total || 0,
+        items: order.items || [],
+        status: order.status || 'pending',
+        createdAt: order.createdAt,
+        updatedAt: order.updatedAt
+      }))
     });
   } catch (error) {
     console.error('Error fetching orders:', error);

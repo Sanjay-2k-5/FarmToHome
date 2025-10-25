@@ -233,36 +233,41 @@ export const CartProvider = ({ children }) => {
         if (!itemToUpdate) return prevItems;
         
         const newQty = clampQty(qty, stock ?? itemToUpdate.stock);
-        
-        // Optimistically update the UI
         const updatedItems = prevItems.map(item => 
           item._id === id ? { ...item, qty: newQty } : item
         );
         
-        // Save to localStorage for guest users
+        // For guest users, update local storage
         if (!isAuthenticated) {
           try {
             localStorage.setItem('cart_guest', JSON.stringify(updatedItems));
           } catch (e) {
             console.error('Error saving cart to local storage:', e);
+            return prevItems; // Revert on error
           }
         }
         
         return updatedItems;
       });
       
+      // For authenticated users, update server
       if (isAuthenticated) {
-        // For authenticated users, update server after UI update
         try {
-          await api.put(`/api/cart/${id}`, { qty });
-          // Refresh cart from server to ensure consistency
-          await loadCart();
-        } catch (error) {
-          console.error('Failed to update quantity on server:', error);
-          // On error, reload cart to sync with server
-          await loadCart();
-          return false;
-        }
+            const newQty = clampQty(qty, stock);
+            // Log request details for debugging
+            console.log('Updating cart qty on server', { id, qty: newQty });
+
+            // Send qty both as query param and in body to be robust against middleware differences
+            await api.put(`/api/cart/${id}?qty=${encodeURIComponent(newQty)}`, { qty: newQty });
+
+            // Refresh cart from server to ensure consistency
+            await loadCart();
+          } catch (error) {
+            console.error('Failed to update quantity on server:', error.response?.data || error.message);
+            // Revert on error by reloading server state
+            await loadCart();
+            return false;
+          }
       }
       
       return true;
@@ -273,26 +278,39 @@ export const CartProvider = ({ children }) => {
   }, [isAuthenticated, loadCart]);
 
   const increment = useCallback(async (id) => {
-    const item = items.find(p => p._id === id);
-    if (!item) return false;
-    
-    const newQty = clampQty((item.qty || 0) + 1, item.stock);
-    if (newQty === item.qty) return false; // No change needed
-    
-    return await updateQty(id, newQty, item.stock);
+    try {
+      const item = items.find(p => p._id === id);
+      if (!item) return false;
+      // Use 0.5 increments to match UI which steps by 0.5 (kg)
+      const currentQty = parseFloat(item.qty) || 0;
+      const newQty = Math.round((currentQty + 0.5) * 100) / 100;
+      
+      if (newQty > (item.stock || 0)) return false;
+      
+      return await updateQty(id, newQty, item.stock);
+    } catch (error) {
+      console.error('Error incrementing quantity:', error);
+      return false;
+    }
   }, [items, updateQty]);
 
   const decrement = useCallback(async (id) => {
-    const item = items.find(p => p._id === id);
-    if (!item) return false;
-    
-    const newQty = clampQty((item.qty || 0) - 1, item.stock);
-    if (newQty === item.qty) return false; // No change needed
-    
-    if (newQty <= 0) {
-      return await removeItem(id);
+    try {
+      const item = items.find(p => p._id === id);
+      if (!item) return false;
+      // Use 0.5 decrements to match UI
+      const currentQty = parseFloat(item.qty) || 0;
+      const newQty = Math.round((currentQty - 0.5) * 100) / 100;
+      
+      if (newQty <= 0) {
+        return await removeItem(id);
+      }
+      
+      return await updateQty(id, newQty, item.stock);
+    } catch (error) {
+      console.error('Error decrementing quantity:', error);
+      return false;
     }
-    return await updateQty(id, newQty, item.stock);
   }, [items, updateQty, removeItem]);
 
   // Sync guest cart with server when user logs in

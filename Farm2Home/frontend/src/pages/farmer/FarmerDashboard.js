@@ -125,7 +125,7 @@ const FarmerDashboard = () => {
         <Col lg={12}>
           <Card className="mb-4">
             <Card.Header className="d-flex justify-content-between align-items-center">
-              <h5 className="mb-0">Pending Orders</h5>
+              <h5 className="mb-0" style={{ color: 'black' }}>Pending Orders</h5>
               <Button 
                 variant="outline-primary" 
                 size="sm"

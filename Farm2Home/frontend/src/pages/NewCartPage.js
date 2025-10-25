@@ -6,7 +6,7 @@ import { useCart } from '../contexts/NewCartContext';
 import { useAuth } from '../contexts/AuthContext';
 
 const CartPage = () => {
-  const { items, removeItem, updateQty, clearCart, isLoading } = useCart();
+  const { items, removeItem, updateQty, clearCart, isLoading, refreshCart: loadCart } = useCart();
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [isRemoving, setIsRemoving] = useState({});
@@ -18,25 +18,42 @@ const CartPage = () => {
   }, []);
 
   const handleQuantityChange = async (productId, newQty) => {
-    if (newQty < 1) return;
+    if (newQty < 0.5) return; // Minimum quantity is 0.5
+    
     try {
+      // Find the item to check stock
       const item = items.find(item => item._id === productId);
-      if (item) {
-        await updateQty(productId, newQty);
+      if (!item) {
+        console.warn('Item not found in cart, refreshing...');
+        await loadCart(); // Try to refresh the cart
+        return;
+      }
+      
+      // Ensure we don't exceed available stock
+      const quantity = Math.min(newQty, item.stock || Infinity);
+      
+      // Update the quantity
+      const success = await updateQty(productId, quantity);
+      
+      // If update failed, refresh the cart
+      if (!success) {
+        await loadCart();
       }
     } catch (error) {
-      setError('Failed to update quantity');
       console.error('Error updating quantity:', error);
+      // Show a more specific error message if available
+      setError(error.message || 'Failed to update quantity');
     }
   };
 
-  const handleIncrement = (item) => {
-    handleQuantityChange(item._id, item.qty + 1);
+  const handleIncrement = async (item) => {
+    await handleQuantityChange(item._id, item.qty + 1);
   };
 
-  const handleDecrement = (item) => {
-    if (item.qty > 1) {
-      handleQuantityChange(item._id, item.qty - 1);
+  const handleDecrement = async (item) => {
+    const newQty = Math.max(0.5, item.qty - 1); // Don't go below 0.5
+    if (newQty !== item.qty) {
+      await handleQuantityChange(item._id, newQty);
     }
   };
 
