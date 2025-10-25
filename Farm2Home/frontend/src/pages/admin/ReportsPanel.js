@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Card, Form, Spinner } from 'react-bootstrap';
+import { Card, Form, Spinner, Alert } from 'react-bootstrap';
 import api from '../../services/api';
 
 const ReportsPanel = () => {
@@ -8,15 +8,43 @@ const ReportsPanel = () => {
   const [range, setRange] = useState('30');
   const [reportType, setReportType] = useState('sales');
   const [reportData, setReportData] = useState([]);
+  const [error, setError] = useState('');
 
   const loadReports = async () => {
     setLoading(true);
+    setError('');
     try {
-      const { data } = await api.get(`/api/admin/reports?range=${range}`);
-      setReports(data);
-      setReportData(data[reportType] || []);
+      // Use available admin endpoints. The backend doesn't expose /api/admin/reports,
+      // so request the appropriate endpoint per report type.
+      if (reportType === 'sales') {
+        const res = await api.get(`/api/admin/sales?range=${range}d`);
+        console.log('ReportsPanel: sales response', res);
+        // res.data should be { rangeDays, data: [{date, revenue, units}, ...] }
+        const series = res.data?.data || [];
+        if (!Array.isArray(series) || series.length === 0) {
+          // No series available; clear data (renderReportTable will show 'No data available')
+          setReportData([]);
+        } else {
+          const mapped = series.map(d => ({ label: d.date, value: Number(d.revenue || 0), orders: d.units || 0 }));
+          setReportData(mapped);
+        }
+      } else if (reportType === 'users') {
+        const res = await api.get('/api/admin/stats/users');
+        console.log('ReportsPanel: users response', res);
+        const active = res.data?.active ?? res.data?.activeUsers ?? 0;
+        const change = res.data?.change || '0%';
+        setReportData([{ label: 'Active users', value: active, change }]);
+      } else if (reportType === 'products') {
+        const res = await api.get('/api/admin/stats/products');
+        const total = res.data?.total ?? 0;
+        const change = res.data?.change || '0%';
+        setReportData([{ label: 'Total products', value: total, change }]);
+      } else {
+        setReportData([]);
+      }
     } catch (err) {
-      console.error('Error loading reports:', err);
+      console.error('Error loading reports:', err, err.response?.data);
+      setError(err.response?.data?.message || 'Failed to load reports');
     } finally {
       setLoading(false);
     }
@@ -151,6 +179,9 @@ const ReportsPanel = () => {
           </div>
         ) : (
           <>
+            {error && (
+              <Alert variant="warning">{error}</Alert>
+            )}
             {renderChart()}
             {renderReportTable()}
           </>

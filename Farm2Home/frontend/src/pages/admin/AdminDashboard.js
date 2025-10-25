@@ -19,50 +19,39 @@ const AdminDashboard = () => {
     setLoading(true);
     setError('');
     try {
-      // Make parallel API calls to get all stats with error handling
-      const [productsRes, usersRes, revenueRes, ordersRes] = await Promise.all([
-        api.get('/api/admin/stats/products').catch(e => ({ data: { total: 0, change: '0%' } })),
-        api.get('/api/admin/stats/users').catch(e => ({ data: { active: 0, change: '0%' } })),
-        api.get('/api/admin/stats/revenue').catch(e => ({ data: { currentMonth: 0, change: '0%' } })),
-        api.get('/api/admin/stats/orders').catch(e => ({ data: { pending: 0, change: '0%' } }))
-      ]);
+      // Use the combined stats endpoint which returns productCount, userCount, activeUsers, totalRevenue, totalOrders, totalItemsSold
+      const res = await api.get('/api/admin/stats');
+      console.log('Admin combined stats:', res.data);
 
-      // Debug logs to help trace missing values
-      console.log('Admin stats responses:', {
-        products: productsRes?.data,
-        users: usersRes?.data,
-        revenue: revenueRes?.data,
-        orders: ordersRes?.data
-      });
-
+      const data = res.data || {};
       setStats([
-        { 
-          title: 'Total Products', 
-          value: productsRes?.data?.total?.toLocaleString() || '0',
+        {
+          title: 'Total Products',
+          value: (data.productCount || 0).toLocaleString(),
           icon: <FaBox className="text-primary" />,
-          change: productsRes?.data?.change || '0%',
-          trend: productsRes?.data?.change?.startsWith('+') ? 'up' : 'down'
+          change: '0%',
+          trend: 'up'
         },
-        { 
-          title: 'Active Users', 
-          value: usersRes?.data?.active?.toLocaleString() || '0',
+        {
+          title: 'Active Users',
+          value: (data.userCount || 0).toLocaleString(),
           icon: <FaUsers className="text-success" />,
-          change: usersRes?.data?.change || '0%',
-          trend: usersRes?.data?.change?.startsWith('+') ? 'up' : 'down'
+          change: '0%',
+          trend: 'up'
         },
-        { 
-          title: 'Monthly Revenue', 
-          value: `₹${(revenueRes?.data?.currentMonth || 0).toLocaleString('en-IN')}`,
+        {
+          title: 'Monthly Revenue',
+          value: `₹${(data.totalRevenue || 0).toLocaleString('en-IN')}`,
           icon: <FaRupeeSign className="text-warning" />,
-          change: revenueRes?.data?.change || '0%',
-          trend: revenueRes?.data?.change?.startsWith('+') ? 'up' : 'down'
+          change: '0%',
+          trend: 'up'
         },
-        { 
-          title: 'Pending Orders', 
-          value: (ordersRes?.data?.pending || 0).toString(),
+        {
+          title: 'Pending Orders',
+          value: (data.totalOrders || 0).toString(),
           icon: <FaShoppingCart className="text-info" />,
-          change: ordersRes?.data?.change || '0%',
-          trend: ordersRes?.data?.change?.startsWith('+') ? 'up' : 'down'
+          change: '0%',
+          trend: 'up'
         }
       ]);
     } catch (err) {
