@@ -112,7 +112,20 @@ function App() {
                     </PrivateRoute>
                   } />
                   
+                  {/* Support multiple routes used by the farmer UI */}
                   <Route path="/farmer/products/add" element={
+                    <PrivateRoute requiredRole="farmer">
+                      <AddProduct />
+                    </PrivateRoute>
+                  } />
+
+                  <Route path="/farmer/products/new" element={
+                    <PrivateRoute requiredRole="farmer">
+                      <AddProduct />
+                    </PrivateRoute>
+                  } />
+
+                  <Route path="/farmer/products/edit/:id" element={
                     <PrivateRoute requiredRole="farmer">
                       <AddProduct />
                     </PrivateRoute>

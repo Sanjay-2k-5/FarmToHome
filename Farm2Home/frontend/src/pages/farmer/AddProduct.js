@@ -11,7 +11,8 @@ const AddProduct = () => {
     description: '',
     price: '',
     stock: '',
-    category: 'fruits',
+    // Use category values that match backend enums: 'fruit','vegetable','other'
+    category: 'fruit',
     image: null
   });
   const [loading, setLoading] = useState(false);
@@ -184,9 +185,9 @@ const AddProduct = () => {
                     onChange={handleChange}
                     required
                   >
-                    <option value="fruits">Fruits</option>
-                    <option value="vegetables">Vegetables</option>
-                    <option value="other_groceries">Other Groceries</option>
+                    <option value="fruit">Fruits</option>
+                    <option value="vegetable">Vegetables</option>
+                    <option value="other">Other Groceries</option>
                   </Form.Select>
                 </Form.Group>
               </Col>
