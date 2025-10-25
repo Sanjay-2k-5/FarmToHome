@@ -29,11 +29,13 @@ const ReportsPanel = () => {
           setReportData(mapped);
         }
       } else if (reportType === 'users') {
-        const res = await api.get('/api/admin/stats/users');
-        console.log('ReportsPanel: users response', res);
-        const active = res.data?.active ?? res.data?.activeUsers ?? 0;
-        const change = res.data?.change || '0%';
-        setReportData([{ label: 'Active users', value: active, change }]);
+      const res = await api.get('/api/admin/stats/users');
+      console.log('ReportsPanel: users response', res);
+      const active = Number(res.data?.active ?? res.data?.activeUsers ?? 0);
+      const change = res.data?.change || '0%';
+      const newUsers = Number(res.data?.newUsers ?? res.data?.newUsersCount ?? 0);
+      // Provide both active users (for chart) and newUsers (for 'New Users' table column)
+      setReportData([{ label: 'Active users', value: active, change, newUsers }]);
       } else if (reportType === 'products') {
         const res = await api.get('/api/admin/stats/products');
         const total = res.data?.total ?? 0;

@@ -1,6 +1,5 @@
 const User = require('../models/User');
 const Product = require('../models/Product');
-const Sale = require('../models/Sale');
 const Order = require('../models/Order');
 
 // @desc    Get available user roles
@@ -99,30 +98,45 @@ exports.getSalesSeries = async (req, res) => {
     const range = (req.query.range || '30d').toLowerCase();
     const days = parseInt(range, 10) || 30;
     const fromDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-
-    const series = await Sale.aggregate([
-      { $match: { soldAt: { $gte: fromDate } } },
+    // Use Orders collection to build a daily timeseries. Many apps store sales in the
+    // orders collection rather than a separate Sale model, so aggregate Orders here.
+    const series = await Order.aggregate([
+      { $match: { createdAt: { $gte: fromDate }, status: { $in: ['delivered', 'completed'] } } },
+      {
+        $project: {
+          createdAt: 1,
+          total: 1,
+          // Sum up item quantities within each order
+          itemsQty: {
+            $reduce: {
+              input: '$items',
+              initialValue: 0,
+              in: { $add: ['$$value', '$$this.qty'] }
+            }
+          }
+        }
+      },
       {
         $group: {
           _id: {
-            y: { $year: '$soldAt' },
-            m: { $month: '$soldAt' },
-            d: { $dayOfMonth: '$soldAt' },
+            y: { $year: '$createdAt' },
+            m: { $month: '$createdAt' },
+            d: { $dayOfMonth: '$createdAt' }
           },
           revenue: { $sum: '$total' },
-          units: { $sum: '$quantity' },
-        },
+          units: { $sum: '$itemsQty' }
+        }
       },
       { $sort: { '_id.y': 1, '_id.m': 1, '_id.d': 1 } },
     ]);
 
     const data = series.map((s) => ({
       date: `${s._id.y}-${String(s._id.m).padStart(2, '0')}-${String(s._id.d).padStart(2, '0')}`,
-      revenue: s.revenue,
-      units: s.units,
+      revenue: s.revenue || 0,
+      units: s.units || 0,
     }));
 
-    res.json({ rangeDays: days, data });
+    return res.json({ rangeDays: days, data });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
@@ -159,20 +173,25 @@ exports.getProductStats = async (req, res) => {
 // @access  Private/Admin
 exports.getUserStats = async (req, res) => {
   try {
-    const activeUsers = await User.countDocuments({ isActive: true });
+    // The User model does not include `isActive`/`lastActive` fields in this schema.
+    // Use createdAt as a proxy for recent activity: total users (excluding admins) and
+    // users created in the last month to compute change.
+    const activeUsers = await User.countDocuments({ role: { $ne: 'admin' } });
     const lastMonthCount = await User.countDocuments({
-      isActive: true,
-      lastActive: { 
+      role: { $ne: 'admin' },
+      createdAt: { 
         $gte: new Date(new Date().setMonth(new Date().getMonth() - 1)),
         $lt: new Date()
       }
     });
-    
+
     const change = lastMonthCount > 0 
       ? `+${Math.round(((activeUsers - lastMonthCount) / lastMonthCount) * 100)}%`
       : '0%';
-      
-    res.json({ active: activeUsers, change });
+
+    // Also return the raw count of users created in the last month so the frontend
+    // can display 'New Users' alongside active user totals.
+    res.json({ active: activeUsers, change, newUsers: lastMonthCount });
   } catch (error) {
     console.error('Error fetching user stats:', error);
     res.status(500).json({ error: 'Failed to fetch user statistics' });
@@ -190,7 +209,7 @@ exports.getRevenueStats = async (req, res) => {
     const monthlyRevenue = await Order.aggregate([
       {
         $match: {
-          status: 'completed',
+          status: { $in: ['delivered', 'completed'] },
           createdAt: {
             $gte: new Date(currentYear, currentMonth, 1),
             $lt: new Date(currentYear, currentMonth + 1, 1)
@@ -200,7 +219,7 @@ exports.getRevenueStats = async (req, res) => {
       {
         $group: {
           _id: null,
-          total: { $sum: '$totalAmount' }
+          total: { $sum: '$total' }
         }
       }
     ]);
@@ -208,7 +227,7 @@ exports.getRevenueStats = async (req, res) => {
     const lastMonthRevenue = await Order.aggregate([
       {
         $match: {
-          status: 'completed',
+          status: { $in: ['delivered', 'completed'] },
           createdAt: {
             $gte: new Date(currentYear, currentMonth - 1, 1),
             $lt: new Date(currentYear, currentMonth, 1)
@@ -218,7 +237,7 @@ exports.getRevenueStats = async (req, res) => {
       {
         $group: {
           _id: null,
-          total: { $sum: '$totalAmount' }
+          total: { $sum: '$total' }
         }
       }
     ]);
