@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Container, Row, Col, Card, Button, Badge, Tab, Nav, Spinner, Form, Table, Modal, InputGroup, ButtonGroup } from 'react-bootstrap';
-import api from '../services/api';
+import api, { getRevenueStats, processRevenue, getDeliveredOrdersRevenue } from '../services/api';
 
 const AdminDashboard = () => {
   const { user, isAdmin, logout } = useAuth();
@@ -429,17 +429,17 @@ const RevenuePanel = () => {
       setLoading(true);
       // Load regular revenue data
       const [revenueRes, deliveredRes] = await Promise.all([
-        api.get('/api/admin/revenue'),
-        api.get('/api/orders/revenue')
+        getRevenueStats(),
+        getDeliveredOrdersRevenue()
       ]);
       
       setRevenueData({
-        total: revenueRes.data.data?.total || 0,
-        monthly: revenueRes.data.data?.monthly || [],
-        pending: revenueRes.data.data?.pending || [],
+        total: revenueRes.data?.total || 0,
+        monthly: revenueRes.data?.monthly || [],
+        pending: revenueRes.data?.pending || [],
         delivered: {
-          totalRevenue: deliveredRes.data.totalRevenue || 0,
-          orderCount: deliveredRes.data.orderCount || 0
+          totalRevenue: deliveredRes.data?.totalRevenue || 0,
+          orderCount: deliveredRes.data?.orderCount || 0
         }
       });
     } catch (error) {
@@ -451,8 +451,8 @@ const RevenuePanel = () => {
 
   const handleProcessRevenue = async (id) => {
     try {
-      setProcessing(prev => ({ ...prev, [id]: true }));
-      await api.put(`/api/admin/revenue/${id}/process`);
+        setProcessing(prev => ({ ...prev, [id]: true }));
+      await processRevenue(id);
       await loadRevenueData();
     } catch (error) {
       console.error('Failed to process revenue:', error);

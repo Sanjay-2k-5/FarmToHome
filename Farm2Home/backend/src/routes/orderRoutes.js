@@ -1,13 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/auth');
+const { protect, authorize } = require('../middleware/auth');
 const { 
   createOrder, 
   getMyOrders, 
   getOrderById,
   getDeliveredOrdersRevenue 
 } = require('../controllers/orderController');
-const { admin } = require('../middleware/auth');
 
 // Protect all routes
 router.use(protect);
@@ -18,10 +17,10 @@ router.post('/', createOrder);
 // Get logged in user's orders
 router.get('/my-orders', getMyOrders);
 
-// Get order by ID
-router.get('/:id', getOrderById);
+// Admin routes - Must come before :id to avoid conflict
+router.get('/revenue', authorize('admin'), getDeliveredOrdersRevenue);
 
-// Admin routes
-router.get('/revenue', admin, getDeliveredOrdersRevenue);
+// Get order by ID - Must come after all other specific routes
+router.get('/:id', getOrderById);
 
 module.exports = router;

@@ -11,21 +11,45 @@ const api = axios.create({
 // Request interceptor to add auth token to requests
 api.interceptors.request.use(
   (config) => {
+    console.log('API Request:', {
+      url: config.url,
+      method: config.method,
+      headers: config.headers,
+      data: config.data
+    });
+    
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.log('Auth token added to request');
+    } else {
+      console.warn('No auth token found in localStorage');
     }
     return config;
   },
   (error) => {
+    console.error('Request Error Interceptor:', error);
     return Promise.reject(error);
   }
 );
 
-// Response interceptor to handle common errors
+// Response interceptor to handle errors
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log('API Response:', {
+      url: response.config.url,
+      status: response.status,
+      data: response.data
+    });
+    return response;
+  },
   (error) => {
+    console.error('API Error:', {
+      url: error.config?.url,
+      status: error.response?.status,
+      message: error.message,
+      response: error.response?.data
+    });
     // Handle session expiration
     if (error.response?.status === 401) {
       // Clear auth data
@@ -43,5 +67,9 @@ api.interceptors.response.use(
 
 // Order related API calls
 export const getDeliveredOrdersRevenue = () => api.get('/api/orders/revenue');
+
+// Revenue related API calls
+export const getRevenueStats = () => api.get('/api/admin/revenue');
+export const processRevenue = (id) => api.put(`/api/admin/revenue/${id}/process`);
 
 export default api;

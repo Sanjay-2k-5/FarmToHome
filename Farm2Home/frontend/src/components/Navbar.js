@@ -21,6 +21,9 @@ const Navbar = () => {
     }
     return location.pathname.startsWith(path);
   };
+  
+  // Check if current page is login or register
+  const isAuthPage = ['/login', '/register', '/forgot-password'].includes(location.pathname);
 
   const handleClick = () => setClick(!click);
   const closeMobileMenu = () => setClick(false);
@@ -44,72 +47,96 @@ const Navbar = () => {
     navigate('/');
   };
 
+  // Check if current user is admin
+  const isUserAdmin = isAuthenticated() && isAdmin && isAdmin();
+
   return (
     <nav className={scrolled ? "navbar scrolled" : "navbar"}>
       <div className="navbar-container">
-        <Link to="/" className="navbar-logo" onClick={closeMobileMenu}>
+        <Link to={isUserAdmin ? "/admin" : "/"} className="navbar-logo" onClick={closeMobileMenu}>
           <FaLeaf className="navbar-icon" /> Farm2Home
         </Link>
 
-        <div className="menu-icon" onClick={handleClick}>
-          {click ? <FaTimes /> : <FaBars />}
-        </div>
+        {!isUserAdmin && (
+          <div className="menu-icon" onClick={handleClick}>
+            {click ? <FaTimes /> : <FaBars />}
+          </div>
+        )}
 
-        <ul className={click ? "nav-menu active" : "nav-menu"}>
-          <li className="nav-item">
-            <Link to="/" className="nav-links" onClick={closeMobileMenu}>
-              <FaHome className="nav-icon" /> Home
-            </Link>
-          </li>
-          <li className="nav-item">
-            <Link to="/products" className="nav-links" onClick={closeMobileMenu}>
-              <FaShoppingCart className="nav-icon" /> Products
-            </Link>
-          </li>
-          {isAuthenticated() && user?.role === 'farmer' ? (
-            <li className="nav-item">
-              <Link to="/farmer/dashboard" className="nav-links" onClick={closeMobileMenu}>
-                <FaTachometerAlt className="nav-icon" /> Farmer Dashboard
-              </Link>
-            </li>
-          ) : isAuthenticated() && user?.role === 'delivery' ? (
-            <li className="nav-item">
-              <Link to="/delivery" className="nav-links" onClick={closeMobileMenu}>
-                <FaTachometerAlt className="nav-icon" /> Delivery Dashboard
-              </Link>
-            </li>
-          ) : (!isAdmin || !isAdmin()) && (
-            <li className="nav-item">
-              <Link to="/cart" className="nav-links" onClick={closeMobileMenu}>
-                <FaShoppingCart className="nav-icon" /> Cart
-                {itemCount > 0 && <span className="badge bg-primary ms-1">{itemCount}</span>}
-              </Link>
-            </li>
-          )}
-          <li className="nav-item">
-            <Link to="/blog" className="nav-links" onClick={closeMobileMenu}>
-              <FaBlog className="nav-icon" /> Blog
-            </Link>
-          </li>
-
-          {isAuthenticated() ? (
+        <ul className={click || isUserAdmin ? "nav-menu active" : "nav-menu"}>
+          {!isUserAdmin && !isAuthPage && (
             <>
-              <li className="nav-item">
-                <Link to="/dashboard" className="nav-links" onClick={closeMobileMenu}>
-                  <FaUserCircle className="nav-icon" /> Dashboard
-                </Link>
-              </li>
-              {user?.role === 'user' && (
+              {(!isAuthenticated() || (user?.role !== 'delivery' && user?.role !== 'farmer')) && (
                 <li className="nav-item">
-                  <Link to="/my-orders" className="nav-links" onClick={closeMobileMenu}>
-                    <FaClipboardList className="nav-icon" /> My Orders
+                  <Link to="/" className="nav-links" onClick={closeMobileMenu}>
+                    <FaHome className="nav-icon" /> Home
                   </Link>
                 </li>
               )}
-              {isAdmin() && (
+              {(!isAuthenticated() || (user?.role !== 'delivery' && user?.role !== 'farmer')) && (
+                <li className="nav-item">
+                  <Link to="/products" className="nav-links" onClick={closeMobileMenu}>
+                    <FaShoppingCart className="nav-icon" /> Products
+                  </Link>
+                </li>
+              )}
+              {isAuthenticated() && user?.role === 'farmer' ? (
+                <>
+                  <li className="nav-item">
+                    <Link to="/farmer/dashboard" className="nav-links" onClick={closeMobileMenu}>
+                      <FaTachometerAlt className="nav-icon" /> Dashboard
+                    </Link>
+                  </li>
+                  <li className="nav-item">
+                    <Link to="/farmer/products" className="nav-links" onClick={closeMobileMenu}>
+                      <FaClipboardList className="nav-icon" /> My Products
+                    </Link>
+                  </li>
+                </>
+              ) : isAuthenticated() && user?.role === 'delivery' ? (
+                <li className="nav-item">
+                  <Link to="/delivery" className="nav-links" onClick={closeMobileMenu}>
+                    <FaTachometerAlt className="nav-icon" /> Delivery Dashboard
+                  </Link>
+                </li>
+              ) : isAuthenticated() && (!isAdmin || !isAdmin()) && (
+                <li className="nav-item">
+                  <Link to="/cart" className="nav-links" onClick={closeMobileMenu}>
+                    <FaShoppingCart className="nav-icon" /> Cart
+                    {itemCount > 0 && <span className="badge bg-primary ms-1">{itemCount}</span>}
+                  </Link>
+                </li>
+              )}
+              {(!isAuthenticated() || (user?.role !== 'delivery' && user?.role !== 'farmer')) && (
+                <li className="nav-item">
+                  <Link to="/blog" className="nav-links" onClick={closeMobileMenu}>
+                    <FaBlog className="nav-icon" /> Blog
+                  </Link>
+                </li>
+              )}
+            </>
+          )}
+
+          {isAuthenticated() ? (
+            <>
+              {!isUserAdmin && (
+                <li className="nav-item">
+                  <Link to="/dashboard" className="nav-links" onClick={closeMobileMenu}>
+                    <FaUserCircle className="nav-icon" /> Dashboard
+                  </Link>
+                </li>
+              )}
+              {isUserAdmin && (
                 <li className="nav-item">
                   <Link to="/admin" className="nav-links" onClick={closeMobileMenu}>
-                    <FaUserCog className="nav-icon" /> Admin
+                    <FaTachometerAlt className="nav-icon" /> Dashboard
+                  </Link>
+                </li>
+              )}
+              {!isUserAdmin && user?.role === 'user' && (
+                <li className="nav-item">
+                  <Link to="/my-orders" className="nav-links" onClick={closeMobileMenu}>
+                    <FaClipboardList className="nav-icon" /> My Orders
                   </Link>
                 </li>
               )}

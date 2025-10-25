@@ -24,14 +24,23 @@ export const AuthProvider = ({ children }) => {
 
   // Initialize auth state
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      // Fetch user data (Authorization header is handled by api interceptor)
-      fetchUser();
-    } else {
+    const initializeAuth = async () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          await fetchUser();
+        } catch (error) {
+          console.error('Error initializing auth:', error);
+          // Clear invalid token
+          localStorage.removeItem('token');
+          setUser(null);
+        }
+      }
       setLoading(false);
-    }
-  }, [fetchUser]);
+    };
+
+    initializeAuth();
+  }, []); // Remove fetchUser from dependencies to prevent re-renders
 
   // Register user
   const register = async (userData) => {
@@ -52,14 +61,43 @@ export const AuthProvider = ({ children }) => {
   const login = async (credentials) => {
     try {
       setError(null);
+      console.log('Attempting login with credentials:', { email: credentials.email, role: credentials.role });
+      
       const { data } = await api.post('/api/auth/login', credentials);
+      
+      if (!data || !data.token) {
+        throw new Error('Invalid response from server');
+      }
+      
+      console.log('Login successful, user data:', data);
+      
+      // Store the token
       localStorage.setItem('token', data.token);
-      setUser(data);
-      return { success: true };
+      
+      // Set the user data in state
+      const userData = {
+        _id: data._id,
+        fname: data.fname,
+        lname: data.lname,
+        email: data.email,
+        role: data.role
+      };
+      
+      setUser(userData);
+      
+      return { 
+        success: true, 
+        user: userData,
+        token: data.token 
+      };
     } catch (err) {
-      const msg = err.response?.data?.error || err.response?.data?.message || 'Login failed';
-      setError(msg);
-      return { success: false, error: msg };
+      console.error('Login error:', err);
+      const errorMessage = err.response?.data?.message || err.message || 'Login failed. Please try again.';
+      setError(errorMessage);
+      return { 
+        success: false, 
+        error: errorMessage 
+      };
     }
   };
 

@@ -1,6 +1,38 @@
 const User = require('../models/User');
 const Product = require('../models/Product');
 const Sale = require('../models/Sale');
+const Order = require('../models/Order');
+
+// @desc    Get available user roles
+// @route   GET /api/admin/roles
+// @access  Private/Admin
+exports.getRoles = async (req, res) => {
+  try {
+    // Get roles from the User model schema
+    const roleValues = User.schema.path('role').enumValues;
+    
+    // Define role labels and colors
+    const roleConfig = {
+      user: { label: 'User', color: 'secondary' },
+      farmer: { label: 'Farmer', color: 'success' },
+      vendor: { label: 'Vendor', color: 'primary' },
+      delivery: { label: 'Delivery', color: 'info' },
+      admin: { label: 'Admin', color: 'danger' }
+    };
+    
+    // Map roles to include additional info
+    const roles = roleValues.map(role => ({
+      value: role,
+      label: roleConfig[role]?.label || role.charAt(0).toUpperCase() + role.slice(1),
+      color: roleConfig[role]?.color || 'light'
+    }));
+    
+    res.json(roles);
+  } catch (error) {
+    console.error('Error fetching roles:', error);
+    res.status(500).json({ message: 'Error fetching roles' });
+  }
+};
 
 // @desc    Basic admin stats
 // @route   GET /api/admin/stats
@@ -73,6 +105,139 @@ exports.getSalesSeries = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Get product statistics
+// @route   GET /api/admin/stats/products
+// @access  Private/Admin
+exports.getProductStats = async (req, res) => {
+  try {
+    const totalProducts = await Product.countDocuments();
+    // Calculate percentage change (example: +5% from last month)
+    const lastMonthCount = await Product.countDocuments({
+      createdAt: { 
+        $gte: new Date(new Date().setMonth(new Date().getMonth() - 1)),
+        $lt: new Date()
+      }
+    });
+    
+    const change = lastMonthCount > 0 
+      ? `+${Math.round(((totalProducts - lastMonthCount) / lastMonthCount) * 100)}%`
+      : '0%';
+      
+    res.json({ total: totalProducts, change });
+  } catch (error) {
+    console.error('Error fetching product stats:', error);
+    res.status(500).json({ error: 'Failed to fetch product statistics' });
+  }
+};
+
+// @desc    Get user statistics
+// @route   GET /api/admin/stats/users
+// @access  Private/Admin
+exports.getUserStats = async (req, res) => {
+  try {
+    const activeUsers = await User.countDocuments({ isActive: true });
+    const lastMonthCount = await User.countDocuments({
+      isActive: true,
+      lastActive: { 
+        $gte: new Date(new Date().setMonth(new Date().getMonth() - 1)),
+        $lt: new Date()
+      }
+    });
+    
+    const change = lastMonthCount > 0 
+      ? `+${Math.round(((activeUsers - lastMonthCount) / lastMonthCount) * 100)}%`
+      : '0%';
+      
+    res.json({ active: activeUsers, change });
+  } catch (error) {
+    console.error('Error fetching user stats:', error);
+    res.status(500).json({ error: 'Failed to fetch user statistics' });
+  }
+};
+
+// @desc    Get revenue statistics
+// @route   GET /api/admin/stats/revenue
+// @access  Private/Admin
+exports.getRevenueStats = async (req, res) => {
+  try {
+    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
+    
+    const monthlyRevenue = await Order.aggregate([
+      {
+        $match: {
+          status: 'completed',
+          createdAt: {
+            $gte: new Date(currentYear, currentMonth, 1),
+            $lt: new Date(currentYear, currentMonth + 1, 1)
+          }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: '$totalAmount' }
+        }
+      }
+    ]);
+
+    const lastMonthRevenue = await Order.aggregate([
+      {
+        $match: {
+          status: 'completed',
+          createdAt: {
+            $gte: new Date(currentYear, currentMonth - 1, 1),
+            $lt: new Date(currentYear, currentMonth, 1)
+          }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: '$totalAmount' }
+        }
+      }
+    ]);
+
+    const currentMonthRevenue = monthlyRevenue[0]?.total || 0;
+    const prevMonthRevenue = lastMonthRevenue[0]?.total || 0;
+    
+    const change = prevMonthRevenue > 0
+      ? `${currentMonthRevenue >= prevMonthRevenue ? '+' : ''}${Math.round(((currentMonthRevenue - prevMonthRevenue) / prevMonthRevenue) * 100)}%`
+      : '0%';
+    
+    res.json({ currentMonth: currentMonthRevenue, change });
+  } catch (error) {
+    console.error('Error fetching revenue stats:', error);
+    res.status(500).json({ error: 'Failed to fetch revenue statistics' });
+  }
+};
+
+// @desc    Get order statistics
+// @route   GET /api/admin/stats/orders
+// @access  Private/Admin
+exports.getOrderStats = async (req, res) => {
+  try {
+    const pendingOrders = await Order.countDocuments({ status: 'pending' });
+    const lastMonthPending = await Order.countDocuments({
+      status: 'pending',
+      createdAt: { 
+        $gte: new Date(new Date().setMonth(new Date().getMonth() - 1)),
+        $lt: new Date()
+      }
+    });
+    
+    const change = lastMonthPending > 0
+      ? `${pendingOrders >= lastMonthPending ? '+' : ''}${Math.round(((pendingOrders - lastMonthPending) / lastMonthPending) * 100)}%`
+      : '0%';
+    
+    res.json({ pending: pendingOrders, change });
+  } catch (error) {
+    console.error('Error fetching order stats:', error);
+    res.status(500).json({ error: 'Failed to fetch order statistics' });
   }
 };
 

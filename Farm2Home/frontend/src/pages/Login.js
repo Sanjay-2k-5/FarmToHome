@@ -8,10 +8,11 @@ const Login = () => {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    role: 'user',
+    role: 'user', // user, admin, farmer, delivery
   });
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login, error, isAdmin, isAuthenticated } = useAuth();
+  const { login, isAdmin, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
 
@@ -26,31 +27,73 @@ const Login = () => {
 
   // If already authenticated, redirect to appropriate page
   useEffect(() => {
-    if (isAuthenticated && typeof isAuthenticated === 'function' && isAuthenticated()) {
-      if (isAdmin && typeof isAdmin === 'function' && isAdmin()) {
-        navigate('/admin', { replace: true });
-      } else {
-        navigate('/home', { replace: true });
+    // Only redirect if we have a user and they're not already on the correct page
+    if (user && isAuthenticated && typeof isAuthenticated === 'function' && isAuthenticated()) {
+      const currentPath = window.location.pathname;
+      const userRole = user?.role || role;
+      
+      // Don't redirect if we're already on the correct page
+      if (
+        (userRole === 'admin' && currentPath.startsWith('/admin')) ||
+        (userRole === 'farmer' && currentPath.startsWith('/farmer')) ||
+        (userRole === 'delivery' && currentPath.startsWith('/delivery')) ||
+        (userRole === 'user' && currentPath === '/home')
+      ) {
+        return;
+      }
+      
+      // Only navigate if we're not already navigating
+      switch(userRole) {
+        case 'admin':
+          navigate('/admin/dashboard', { replace: true });
+          break;
+        case 'farmer':
+          navigate('/farmer/dashboard', { replace: true });
+          break;
+        case 'delivery':
+          navigate('/delivery/dashboard', { replace: true });
+          break;
+        case 'user':
+        default:
+          navigate('/home', { replace: true });
       }
     }
-  }, [isAuthenticated, isAdmin, navigate]);
+  }, [isAuthenticated, user, role, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     
-    const { success } = await login({ email, password });
-    
-    if (success) {
-      // Prefer backend role if available, otherwise fall back to selected role
-      if (isAdmin() || role === 'admin') {
-        navigate('/admin');
-      } else {
-        navigate('/home');
-      }
+    // Basic validation
+    if (!email || !password) {
+      setError('Please enter both email and password');
+      return;
     }
     
-    setLoading(false);
+    setLoading(true);
+    setError('');
+    
+    try {
+      const { success, user: loggedInUser, error: loginError } = await login({ 
+        email: email.trim(), 
+        password: password.trim(),
+        role 
+      });
+      
+      if (success && loggedInUser) {
+        // The navigation will be handled by the useEffect above
+        console.log('Login successful, waiting for redirect...');
+      } else {
+        setError(loginError || 'Login failed. Please check your credentials.');
+      }
+    } catch (err) {
+      console.error('Login error:', {
+        error: err,
+        response: err.response?.data
+      });
+      setError(err.response?.data?.message || 'An error occurred during login. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -105,6 +148,8 @@ const Login = () => {
                   <Form.Label>Login as</Form.Label>
                   <Form.Select name="role" value={role} onChange={handleChange}>
                     <option value="user">User</option>
+                    <option value="farmer">Farmer</option>
+                    <option value="delivery">Delivery Partner</option>
                     <option value="admin">Admin</option>
                   </Form.Select>
                 </Form.Group>
