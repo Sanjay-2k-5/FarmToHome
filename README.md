@@ -14,7 +14,6 @@ FarmToHome is a Direct-to-Consumer (D2C) platform connecting farmers directly wi
 FarmToHome/
 ├─ backend/       # Node.js + Express API
 ├─ frontend/      # React Application
-├─ scripts/       # Seed scripts, utility scripts
 ├─ .gitignore
 ├─ package.json
 └─ README.md
