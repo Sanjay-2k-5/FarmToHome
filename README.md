@@ -170,13 +170,6 @@ git push origin feature/your-feature
 
 ---
 
-## 📝 License
-
-This project is licensed under the ISC License.  
-See the LICENSE file for details.
-
----
-
 ## 🔗 Links
 
 - GitHub Repo: [https://github.com/Sanjay-2k-5/FarmToHome](https://github.com/Sanjay-2k-5/FarmToHome)
