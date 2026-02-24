@@ -1,23 +1,3 @@
-<<<<<<< HEAD
-const Cart = require('../models/Cart');
-const Product = require('../models/Product');
-
-// Helper to shape item
-const shapeItem = (prod, qty) => ({
-  _id: String(prod._id),
-  name: prod.name,
-  price: prod.price,
-  stock: prod.stock,
-  imageUrl: prod.imageUrl || '',
-  qty,
-});
-
-// Get or create cart for user
-const getOrCreateCart = async (userId) => {
-  let cart = await Cart.findOne({ user: userId });
-  if (!cart) cart = await Cart.create({ user: userId, items: [] });
-  return cart;
-=======
 const User = require('../models/User');
 const Product = require('../models/Product');
 const mongoose = require('mongoose');
@@ -45,31 +25,10 @@ const getUserWithCart = async (userId) => {
   }
   
   return user;
->>>>>>> 9516d0b (Add local files and apply local edits (branch: muthu-sbranch))
 };
 
 exports.getMyCart = async (req, res) => {
   try {
-<<<<<<< HEAD
-    const cart = await getOrCreateCart(req.user._id);
-    // Populate products
-    const productIds = cart.items.map((i) => i.product);
-    const prods = await Product.find({ _id: { $in: productIds } });
-    const map = new Map(prods.map((p) => [String(p._id), p]));
-    const items = cart.items
-      .map((i) => {
-        const p = map.get(String(i.product));
-        if (!p) return null;
-        // Clamp qty to current stock
-        const qty = Math.min(i.qty, p.stock || 0);
-        return shapeItem(p, qty);
-      })
-      .filter(Boolean);
-    res.json({ items });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ message: 'Server error' });
-=======
     if (!req.user || !req.user._id) {
       return res.status(401).json({ message: 'Not authenticated' });
     }
@@ -117,47 +76,11 @@ exports.getMyCart = async (req, res) => {
       message: 'Server error',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
->>>>>>> 9516d0b (Add local files and apply local edits (branch: muthu-sbranch))
   }
 };
 
 exports.addOrIncrement = async (req, res) => {
   try {
-<<<<<<< HEAD
-    const { productId, qty = 1 } = req.body;
-    if (!productId) return res.status(400).json({ message: 'productId required' });
-    const prod = await Product.findById(productId);
-    if (!prod) return res.status(404).json({ message: 'Product not found' });
-    const cart = await getOrCreateCart(req.user._id);
-    const idx = cart.items.findIndex((i) => String(i.product) === String(productId));
-    const nextQty = Math.max(1, Math.min((idx >= 0 ? cart.items[idx].qty : 0) + Number(qty), prod.stock || 0));
-    if (idx >= 0) cart.items[idx].qty = nextQty; else cart.items.push({ product: productId, qty: nextQty });
-    await cart.save();
-    return exports.getMyCart(req, res);
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ message: 'Server error' });
-  }
-};
-
-exports.updateQty = async (req, res) => {
-  try {
-    const { productId } = req.params;
-    let { qty } = req.body;
-    qty = Number(qty);
-    if (!Number.isFinite(qty) || qty <= 0) return res.status(400).json({ message: 'Invalid qty' });
-    const prod = await Product.findById(productId);
-    if (!prod) return res.status(404).json({ message: 'Product not found' });
-    const cart = await getOrCreateCart(req.user._id);
-    const idx = cart.items.findIndex((i) => String(i.product) === String(productId));
-    if (idx < 0) return res.status(404).json({ message: 'Item not in cart' });
-    cart.items[idx].qty = Math.min(qty, prod.stock || 0);
-    await cart.save();
-    return exports.getMyCart(req, res);
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ message: 'Server error' });
-=======
     if (!req.user || !req.user._id) {
       return res.status(401).json({ message: 'Not authenticated' });
     }
@@ -249,29 +172,25 @@ exports.updateQty = async (req, res) => {
       message: 'Server error',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
->>>>>>> 9516d0b (Add local files and apply local edits (branch: muthu-sbranch))
   }
 };
 
 exports.removeItem = async (req, res) => {
   try {
-<<<<<<< HEAD
-    const { productId } = req.params;
-    const cart = await getOrCreateCart(req.user._id);
-    cart.items = cart.items.filter((i) => String(i.product) !== String(productId));
-    await cart.save();
-    return exports.getMyCart(req, res);
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ message: 'Server error' });
-=======
     if (!req.user || !req.user._id) {
       return res.status(401).json({ message: 'Not authenticated' });
     }
+    // Debug logging: show incoming identifiers for easier tracing
+    console.log('removeItem called', {
+      userId: req.user?._id,
+      params: req.params,
+      query: req.query,
+      body: req.body
+    });
+
+    const { id: productId } = req.params;
     
-    const { id } = req.params;
-    
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+    if (!mongoose.Types.ObjectId.isValid(productId)) {
       return res.status(400).json({ message: 'Valid product ID is required' });
     }
     
@@ -284,35 +203,55 @@ exports.removeItem = async (req, res) => {
     // Initialize cart if it doesn't exist
     if (!user.cart) {
       user.cart = [];
+      await user.save();
+      return res.json({ items: [] });
     }
     
-    // Find and remove the item
-    const initialLength = user.cart.length;
-    user.cart = user.cart.filter(
-      item => item.product.toString() !== id
+    // Find the index of the item to remove
+    const itemIndex = user.cart.findIndex(
+      item => item.product && item.product.toString() === productId
     );
     
-    if (user.cart.length === initialLength) {
+    if (itemIndex === -1) {
       return res.status(404).json({ message: 'Item not found in cart' });
     }
+    
+    // Remove the item from the cart
+    user.cart.splice(itemIndex, 1);
     
     // Save the updated user with cart
     await user.save();
     
-    // Format the response
-    const responseItems = user.cart.map(item => ({
-      _id: item.product,
-      name: item.name,
-      price: item.price,
-      stock: item.stock,
-      imageUrl: item.imageUrl,
-      description: item.description,
-      qty: item.qty
-    }));
+    // If cart is empty after removal, return empty array
+    if (user.cart.length === 0) {
+      return res.json({ items: [], message: 'Item removed from cart' });
+    }
+    
+    // Get updated cart with product details
+    const updatedCart = [];
+    for (const item of user.cart) {
+      try {
+        const product = await Product.findById(item.product);
+        if (product) {
+          updatedCart.push({
+            _id: product._id,
+            name: item.name || product.name,
+            price: item.price || product.price,
+            stock: product.stock,
+            imageUrl: item.imageUrl || product.imageUrl || '',
+            description: product.description || '',
+            qty: item.qty || 1
+          });
+        }
+      } catch (error) {
+        console.error(`Error processing product ${item.product}:`, error);
+      }
+    }
     
     res.json({ 
+      success: true,
       message: 'Item removed from cart',
-      items: responseItems
+      items: updatedCart
     });
     
   } catch (error) {
@@ -327,29 +266,65 @@ exports.removeItem = async (req, res) => {
 exports.updateQty = async (req, res) => {
   try {
     if (!req.user || !req.user._id) {
-      return res.status(401).json({ message: 'Not authenticated' });
+      return res.status(401).json({ 
+        success: false,
+        message: 'Not authenticated' 
+      });
     }
-    
-    const { qty } = req.body;
+    // Debug logging: print incoming request data to help diagnose 400 errors
+    console.log('updateQty called', {
+      userId: req.user?._id,
+      params: req.params,
+      query: req.query,
+      body: req.body
+    });
+
+    // Get quantity from query parameters instead of request body
+    const qty = req.query.qty || req.body.qty;
     const { id } = req.params;
     
     // Validate input
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: 'Valid product ID is required' });
+      return res.status(400).json({ 
+        success: false,
+        message: 'Valid product ID is required' 
+      });
     }
     
-    const parsedQty = Math.max(0, Math.min(Number(qty) || 1, 100));
-    
-    // Find the product to get stock
+    // Find the product first to validate stock
     const product = await Product.findById(id);
     if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
+      return res.status(404).json({ 
+        success: false,
+        message: 'Product not found' 
+      });
+    }
+    
+    // Convert quantity to a number and ensure it's between 0.5 and 1000
+    const parsedQty = parseFloat(qty);
+    if (isNaN(parsedQty) || parsedQty < 0.5) {
+      return res.status(400).json({
+        success: false,
+        message: 'Quantity must be at least 0.5'
+      });
+    }
+    
+    // Ensure quantity doesn't exceed 1000 units or available stock
+    const maxQty = Math.min(1000, product.stock || 1000);
+    if (parsedQty > maxQty) {
+      return res.status(400).json({
+        success: false,
+        message: `Maximum quantity is ${maxQty} units`
+      });
     }
     
     // Get user with cart
     const user = await User.findById(req.user._id);
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ 
+        success: false,
+        message: 'User not found' 
+      });
     }
     
     // Initialize cart if it doesn't exist
@@ -359,11 +334,23 @@ exports.updateQty = async (req, res) => {
     
     // Find the item in cart
     const itemIndex = user.cart.findIndex(
-      item => item.product.toString() === id
+      item => item.product && item.product.toString() === id
     );
     
     if (itemIndex === -1) {
-      return res.status(404).json({ message: 'Item not found in cart' });
+      return res.status(404).json({ 
+        success: false,
+        message: 'Item not found in cart',
+        items: user.cart.map(item => ({
+          _id: item.product,
+          name: item.name,
+          price: item.price,
+          stock: item.stock,
+          imageUrl: item.imageUrl,
+          description: item.description,
+          qty: item.qty
+        }))
+      });
     }
     
     if (parsedQty <= 0) {
@@ -371,13 +358,20 @@ exports.updateQty = async (req, res) => {
       user.cart.splice(itemIndex, 1);
     } else {
       // Update quantity and ensure it doesn't exceed stock
-      user.cart[itemIndex].qty = Math.min(parsedQty, product.stock);
-      // Update other product details in case they've changed
-      user.cart[itemIndex].price = product.price;
-      user.cart[itemIndex].name = product.name;
-      user.cart[itemIndex].imageUrl = product.imageUrl || product.img || '';
-      user.cart[itemIndex].description = product.description || '';
-      user.cart[itemIndex].stock = product.stock;
+      const newQty = Math.min(parsedQty, product.stock);
+      if (newQty < 1) {
+        // If the calculated quantity is less than 1, remove the item
+        user.cart.splice(itemIndex, 1);
+      } else {
+        // Otherwise, update the item
+        user.cart[itemIndex].qty = newQty;
+        // Update other product details in case they've changed
+        user.cart[itemIndex].price = product.price;
+        user.cart[itemIndex].name = product.name;
+        user.cart[itemIndex].imageUrl = product.imageUrl || product.img || '';
+        user.cart[itemIndex].description = product.description || '';
+        user.cart[itemIndex].stock = product.stock;
+      }
     }
     
     // Save the updated user with cart
@@ -395,6 +389,7 @@ exports.updateQty = async (req, res) => {
     }));
     
     res.json({ 
+      success: true,
       message: 'Cart updated successfully',
       items: responseItems
     });
@@ -405,21 +400,11 @@ exports.updateQty = async (req, res) => {
       message: 'Server error',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
->>>>>>> 9516d0b (Add local files and apply local edits (branch: muthu-sbranch))
   }
 };
 
 exports.clearCart = async (req, res) => {
   try {
-<<<<<<< HEAD
-    const cart = await getOrCreateCart(req.user._id);
-    cart.items = [];
-    await cart.save();
-    return exports.getMyCart(req, res);
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ message: 'Server error' });
-=======
     if (!req.user || !req.user._id) {
       return res.status(401).json({ message: 'Not authenticated' });
     }
@@ -445,6 +430,5 @@ exports.clearCart = async (req, res) => {
       message: 'Server error',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
->>>>>>> 9516d0b (Add local files and apply local edits (branch: muthu-sbranch))
   }
 };

@@ -30,9 +30,19 @@ exports.getProducts = async (req, res) => {
 // @access  Private/Admin
 exports.createProduct = async (req, res) => {
   try {
-    const { name, description, price, stock, imageUrl, category, isActive } = req.body;
+    // Accept farmer from body or default to the authenticated user (useful for admin-created products)
+    const { name, description, price, stock, imageUrl, category, isActive, farmer } = req.body;
+
+    // Basic validation
     if (!name || price == null) return res.status(400).json({ message: 'Name and price are required' });
-    const product = await Product.create({ name, description, price, stock, imageUrl, category, isActive });
+
+    const farmerId = farmer || (req.user && req.user._id);
+    if (!farmerId) return res.status(400).json({ message: 'Farmer (owner) is required' });
+
+    // If an admin is creating the product and didn't explicitly set isActive, mark product active by default
+    const finalIsActive = typeof isActive !== 'undefined' ? isActive : (req.user && req.user.role === 'admin');
+
+    const product = await Product.create({ name, description, price, stock, imageUrl, category, isActive: finalIsActive, farmer: farmerId });
     res.status(201).json(product);
   } catch (err) {
     console.error(err);

@@ -7,8 +7,9 @@ router.use(protect);
 
 router.get('/', getMyCart);
 router.post('/', addOrIncrement);
-router.put('/:productId', updateQty);
-router.delete('/:productId', removeItem);
+// Use ':id' for the PUT route so controller can read req.params.id
+router.put('/:id', updateQty);
+router.delete('/:id', removeItem);
 router.delete('/', clearCart);
 
 module.exports = router;

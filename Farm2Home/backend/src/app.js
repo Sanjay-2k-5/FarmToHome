@@ -34,11 +34,19 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
+// Serve static files from uploads directory
+const path = require('path');
+app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
+
 // Routes
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/products', require('./routes/productRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
 app.use('/api/cart', require('./routes/cartRoutes'));
+app.use('/api/orders', require('./routes/orderRoutes'));
+app.use('/api/farmer', require('./routes/farmerRoutes'));
+app.use('/api/delivery', require('./routes/deliveryRoutes'));
+app.use('/api/admin/revenue', require('./routes/revenueRoutes'));
 
 // Health
 app.get('/', (req, res) => {

@@ -2,14 +2,23 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Container, Row, Col, Card, Button, Badge, Tab, Nav, Spinner, Form, Table, Modal, InputGroup, ButtonGroup } from 'react-bootstrap';
-import api from '../services/api';
+import api, { getRevenueStats, processRevenue, getDeliveredOrdersRevenue } from '../services/api';
+import UsersPanel from './admin/UsersPanel';
 
 const AdminDashboard = () => {
   const { user, isAdmin, logout } = useAuth();
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState(null);
+  const [stats, setStats] = useState({
+    userCount: 0,
+    activeUsers: 0,
+    productCount: 0,
+    totalRevenue: 0,
+    totalOrders: 0,
+    totalItemsSold: 0,
+    lastUpdated: null
+  });
   const [sales, setSales] = useState([]);
   const [range, setRange] = useState('30');
 
@@ -45,8 +54,8 @@ const AdminDashboard = () => {
   return (
     <Container className="mt-4">
       <Row className="mb-4">
-        <Col className="d-flex justify-content-between align-items-center">
-          <h1>Admin Dashboard {user ? <Badge bg="success" className="ms-2">Admin</Badge> : null}</h1>
+        <Col className="d-flex justify-content-between align-items-center text-color-black">
+          <h1 style={{ color: 'black' }}>Admin Dashboard {user ? <Badge bg="success" className="ms-2">Admin</Badge> : null}</h1>
           <Button variant="outline-danger" onClick={handleLogout}>Logout</Button>
         </Col>
       </Row>
@@ -56,30 +65,48 @@ const AdminDashboard = () => {
       ) : (
         <>
           <Row className="mb-4">
-            <Col md={4} className="mb-3">
+            <Col md={3} className="mb-3">
               <Card className="h-100">
                 <Card.Body>
-                  <Card.Title>Users</Card.Title>
-                  <Card.Text className="display-6 fw-bold">{stats?.userCount ?? 0}</Card.Text>
-                  <div className="text-muted">Total registered users</div>
+                  <Card.Title>Total Users</Card.Title>
+                  <Card.Text className="display-6 fw-bold">{stats.userCount}</Card.Text>
+                  <div className="text-muted">Registered users</div>
                 </Card.Body>
               </Card>
             </Col>
-            <Col md={4} className="mb-3">
+            <Col md={3} className="mb-3">
               <Card className="h-100">
                 <Card.Body>
                   <Card.Title>Products</Card.Title>
-                  <Card.Text className="display-6 fw-bold">{stats?.productCount ?? 0}</Card.Text>
-                  <div className="text-muted">Active products</div>
+                  <Card.Text className="display-6 fw-bold">{stats.productCount}</Card.Text>
+                  <div className="text-muted">Active products in store</div>
                 </Card.Body>
               </Card>
             </Col>
-            <Col md={4} className="mb-3">
+            <Col md={3} className="mb-3">
               <Card className="h-100">
                 <Card.Body>
                   <Card.Title>Revenue</Card.Title>
-                  <Card.Text className="display-6 fw-bold">₹{Number(stats?.totalRevenue || 0).toFixed(2)}</Card.Text>
-                  <div className="text-muted">Total sales</div>
+                  <Card.Text className="display-6 fw-bold">
+                    ₹{Number(stats.totalRevenue).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                  </Card.Text>
+                  <div className="text-muted">Total revenue from {stats.totalOrders} orders</div>
+                </Card.Body>
+              </Card>
+            </Col>
+            <Col md={3} className="mb-3">
+              <Card className="h-100">
+                <Card.Body>
+                  <Card.Title>Items Sold</Card.Title>
+                  <Card.Text className="display-6 fw-bold">{stats.totalItemsSold}</Card.Text>
+                  <div className="text-muted">
+                    {stats.totalOrders} orders
+                    {stats.lastUpdated && (
+                      <small className="d-block mt-1 text-muted">
+                        Updated: {new Date(stats.lastUpdated).toLocaleTimeString()}
+                      </small>
+                    )}
+                  </div>
                 </Card.Body>
               </Card>
             </Col>
@@ -96,6 +123,9 @@ const AdminDashboard = () => {
               <Nav.Item>
                 <Nav.Link eventKey="reports">Reports</Nav.Link>
               </Nav.Item>
+              <Nav.Item>
+                <Nav.Link eventKey="revenue">Revenue</Nav.Link>
+              </Nav.Item>
             </Nav>
 
             <Tab.Content>
@@ -107,6 +137,9 @@ const AdminDashboard = () => {
               </Tab.Pane>
               <Tab.Pane eventKey="reports">
                 <ReportsPanel sales={sales} range={range} setRange={setRange} />
+              </Tab.Pane>
+              <Tab.Pane eventKey="revenue">
+                <RevenuePanel />
               </Tab.Pane>
             </Tab.Content>
           </Tab.Container>
@@ -333,74 +366,223 @@ const ProductsManager = () => {
   );
 };
 
-// Users panel component
-const UsersPanel = () => {
-  const [loading, setLoading] = useState(true);
-  const [users, setUsers] = useState([]);
+// UsersPanel is implemented in its own file and fetches roles from the backend
 
-  const load = async () => {
-    setLoading(true);
+// Revenue management panel
+const RevenuePanel = () => {
+  const [loading, setLoading] = useState(true);
+  const [revenueData, setRevenueData] = useState({
+    total: 0,
+    monthly: [],
+    pending: [],
+    delivered: {
+      totalRevenue: 0,
+      orderCount: 0
+    }
+  });
+  const [processing, setProcessing] = useState({});
+
+  const loadRevenueData = async () => {
     try {
-      const { data } = await api.get('/api/admin/users');
-      setUsers(data.users || []);
-    } catch (e) {
-      console.error('Load users failed', e);
+      setLoading(true);
+      // Load regular revenue data
+      const [revenueRes, deliveredRes] = await Promise.all([
+        getRevenueStats(),
+        getDeliveredOrdersRevenue()
+      ]);
+      
+      setRevenueData({
+        total: revenueRes.data?.total || 0,
+        monthly: revenueRes.data?.monthly || [],
+        pending: revenueRes.data?.pending || [],
+        delivered: {
+          totalRevenue: deliveredRes.data?.totalRevenue || 0,
+          orderCount: deliveredRes.data?.orderCount || 0
+        }
+      });
+    } catch (error) {
+      console.error('Failed to load revenue data:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { load(); }, []);
+  const handleProcessRevenue = async (id) => {
+    try {
+        setProcessing(prev => ({ ...prev, [id]: true }));
+      await processRevenue(id);
+      await loadRevenueData();
+    } catch (error) {
+      console.error('Failed to process revenue:', error);
+    } finally {
+      setProcessing(prev => ({ ...prev, [id]: false }));
+    }
+  };
+
+  useEffect(() => {
+    loadRevenueData();
+  }, []);
+
+  // Format currency
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 2
+    }).format(amount);
+  };
+
+  // Format date
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    });
+  };
 
   return (
-    <Card>
-      <Card.Body>
-        <div className="d-flex justify-content-between align-items-center mb-3">
-          <Card.Title className="mb-0">Users</Card.Title>
-        </div>
-        {loading ? (
-          <div className="d-flex justify-content-center py-5"><Spinner animation="border" /></div>
-        ) : (
-          <div className="table-responsive">
-            <Table hover>
+    <div>
+      <Row className="mb-4">
+        <Col md={3}>
+          <Card className="h-100">
+            <Card.Body>
+              <Card.Title>Total Revenue</Card.Title>
+              <Card.Text className="display-6 fw-bold">
+                {formatCurrency(revenueData.total)}
+              </Card.Text>
+              <div className="text-muted">All time processed revenue</div>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={3}>
+          <Card className="h-100">
+            <Card.Body>
+              <Card.Title>Delivered Orders</Card.Title>
+              <Card.Text className="display-6 fw-bold">
+                {revenueData.delivered.orderCount}
+              </Card.Text>
+              <div className="text-muted">Total delivered orders</div>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={3}>
+          <Card className="h-100">
+            <Card.Body>
+              <Card.Title>Delivered Revenue</Card.Title>
+              <Card.Text className="display-6 fw-bold">
+                {formatCurrency(revenueData.delivered.totalRevenue)}
+              </Card.Text>
+              <div className="text-muted">Total from delivered orders</div>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={3}>
+          <Card className="h-100">
+            <Card.Body>
+              <Card.Title>Last Month</Card.Title>
+              <Card.Text className="display-6 fw-bold">
+                {revenueData.monthly.length > 0 
+                  ? formatCurrency(revenueData.monthly[0]?.total || 0)
+                  : '₹0.00'}
+              </Card.Text>
+              <div className="text-muted">Revenue from last month</div>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+
+      <Card className="mb-4">
+        <Card.Body>
+          <Card.Title>Pending Revenue</Card.Title>
+          {loading ? (
+            <div className="d-flex justify-content-center align-items-center" style={{ height: '80vh' }}>
+              <Spinner animation="border" role="status">
+                <span className="visually-hidden">Loading...</span>
+              </Spinner>
+            </div>
+          ) : (
+            <Table hover responsive>
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Role</th>
-                  <th className="text-end">Orders</th>
-                  <th className="text-end">Items</th>
-                  <th className="text-end">Total Spent</th>
-                  <th>Recent Purchases</th>
+                  <th>Order ID</th>
+                  <th>Date</th>
+                  <th className="text-end">Amount</th>
+                  <th>Status</th>
+                  <th className="text-end">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {users.map(u => (
-                  <tr key={u._id}>
-                    <td>{u.name}</td>
-                    <td>{u.email}</td>
-                    <td><Badge bg={u.role === 'admin' ? 'success' : 'secondary'}>{u.role}</Badge></td>
-                    <td className="text-end">{u.orders || 0}</td>
-                    <td className="text-end">{u.items || 0}</td>
-                    <td className="text-end">₹{Number(u.totalSpent || 0).toFixed(2)}</td>
+                {revenueData.pending.map((item) => (
+                  <tr key={item._id}>
+                    <td>{item.order?.orderNumber || 'N/A'}</td>
+                    <td>{formatDate(item.date)}</td>
+                    <td className="text-end">{formatCurrency(item.amount)}</td>
                     <td>
-                      {(u.recentPurchases || []).slice(0, 3).map((r, idx) => (
-                        <Badge bg="light" text="dark" key={idx} className="me-1">
-                          {r.productName} ×{r.quantity}
-                        </Badge>
-                      ))}
+                      <Badge bg="warning">Pending</Badge>
+                    </td>
+                    <td className="text-end">
+                      <Button
+                        variant="success"
+                        size="sm"
+                        disabled={processing[item._id]}
+                        onClick={() => handleProcessRevenue(item._id)}
+                      >
+                        {processing[item._id] ? (
+                          <Spinner size="sm" animation="border" />
+                        ) : (
+                          'Mark as Processed'
+                        )}
+                      </Button>
                     </td>
                   </tr>
                 ))}
-                {users.length === 0 && (
-                  <tr><td colSpan={7} className="text-center text-muted">No users</td></tr>
-                )}
               </tbody>
             </Table>
-          </div>
-        )}
-      </Card.Body>
-    </Card>
+          )  (
+            <div className="text-center text-muted py-4">
+              No pending revenue records
+            </div>
+          )}
+        </Card.Body>
+      </Card>
+
+      <Card>
+        <Card.Body>
+          <Card.Title>Monthly Revenue</Card.Title>
+          {loading ? (
+            <div className="d-flex justify-content-center py-5">
+              <Spinner animation="border" />
+            </div>
+          ) : revenueData.monthly.length > 0 ? (
+            <Table hover responsive>
+              <thead>
+                <tr>
+                  <th>Month</th>
+                  <th className="text-end">Orders</th>
+                  <th className="text-end">Revenue</th>
+                </tr>
+              </thead>
+              <tbody>
+                {revenueData.monthly.map((month) => (
+                  <tr key={`${month._id?.year}-${month._id?.month}`}>
+                    <td>
+                      {new Date(2000, (month._id?.month || 1) - 1, 1).toLocaleString('default', { month: 'long' })} {month._id?.year}
+                    </td>
+                    <td className="text-end">{month.count || 0}</td>
+                    <td className="text-end">{formatCurrency(month.total || 0)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          ) : (
+            <div className="text-center text-muted py-4">
+              No revenue data available
+            </div>
+          )}
+        </Card.Body>
+      </Card>
+    </div>
   );
 };
 

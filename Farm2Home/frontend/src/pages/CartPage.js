@@ -8,9 +8,66 @@ const CartPage = () => {
   const navigate = useNavigate();
   const DELIVERY = 29;
 
+  const [localQuantities, setLocalQuantities] = React.useState({});
+
+  // Initialize local quantities when items change
+  React.useEffect(() => {
+    const initialQuantities = {};
+    items.forEach(item => {
+      initialQuantities[item._id] = item.qty;
+    });
+    setLocalQuantities(initialQuantities);
+  }, [items]);
+
   const handleQtyChange = (id, stock) => (e) => {
-    const v = parseFloat(e.target.value);
+    const value = e.target.value;
+    
+    // Update local state immediately for better UX
+    setLocalQuantities(prev => ({
+      ...prev,
+      [id]: value
+    }));
+
+    // If the field is empty, don't update the actual quantity yet
+    if (value === '') return;
+
+    const v = parseFloat(value);
     if (!Number.isFinite(v) || v <= 0) return;
+    
+    // Update the actual quantity in the cart
+    updateQty(id, v).catch(error => {
+      console.error('Error updating quantity:', error);
+      // Revert the input if there's an error
+      setLocalQuantities(prev => ({
+        ...prev,
+        [id]: items.find(item => item._id === id)?.qty || 0.5
+      }));
+    });
+  };
+
+  const handleBlur = (id, stock) => (e) => {
+    const value = e.target.value;
+    let v = parseFloat(value);
+    
+    // If value is empty or invalid, set to minimum (0.5)
+    if (!value || isNaN(v) || v < 0.5) {
+      v = 0.5;
+      setLocalQuantities(prev => ({
+        ...prev,
+        [id]: v
+      }));
+    }
+    
+    // Ensure we don't exceed stock
+    if (stock && v > stock) {
+      v = stock;
+      setLocalQuantities(prev => ({
+        ...prev,
+        [id]: v
+      }));
+    }
+    
+    // Update the actual quantity in the cart
     updateQty(id, v, stock);
   };
 
@@ -47,19 +104,30 @@ const CartPage = () => {
                       <td>₹{Number(it.price).toFixed(2)}</td>
                       <td>{Number(it.stock || 0)} kg</td>
                       <td>
-                        <div className="d-flex align-items-center">
-                          <Button size="sm" variant="outline-secondary" onClick={() => decrement(it._id)}>-</Button>
+                        <div className="d-flex align-items-center" style={{ minHeight: '38px' }}>
+                          <Button 
+                            size="sm" 
+                            variant="outline-secondary" 
+                            onClick={async () => await decrement(it._id)}
+                            disabled={it.qty <= 0.5}
+                          >-</Button>
                           <Form.Control
                             size="sm"
                             type="number"
                             step="0.5"
-                            min="1"
-                            value={it.qty}
+                            min="0.5"
+                            value={localQuantities[it._id] ?? it.qty}
                             onChange={handleQtyChange(it._id, it.stock)}
+                            onBlur={handleBlur(it._id, it.stock)}
                             className="mx-2"
                             style={{ width: 100 }}
                           />
-                          <Button size="sm" variant="outline-secondary" onClick={() => increment(it._id)}>+</Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline-secondary" 
+                            onClick={async () => await increment(it._id)}
+                            disabled={it.qty >= (it.stock || Infinity)}
+                          >+</Button>
                         </div>
                       </td>
                       <td className="text-end">₹{(Number(it.price) * it.qty).toFixed(2)}</td>
@@ -70,7 +138,7 @@ const CartPage = () => {
                   ))}
                   {items.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="text-center text-muted py-4">Your cart is empty</td>
+                      <td colSpan={6} className="text-center text-muted py-4  style{{color:'black'}}">Your cart is empty</td>
                     </tr>
                   )}
                 </tbody>

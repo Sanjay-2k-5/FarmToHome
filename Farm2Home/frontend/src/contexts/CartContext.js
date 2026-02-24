@@ -1,64 +1,10 @@
-<<<<<<< HEAD
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-=======
 import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
->>>>>>> 9516d0b (Add local files and apply local edits (branch: muthu-sbranch))
 import api from '../services/api';
 import { useAuth } from './AuthContext';
 
 const CartContext = createContext();
 
 export const CartProvider = ({ children }) => {
-<<<<<<< HEAD
-  const { user } = useAuth();
-  const storageKey = user ? `cart_${user._id}` : 'cart_guest';
-  const [items, setItems] = useState(() => {
-    try {
-      const raw = localStorage.getItem('cart_guest');
-      return raw ? JSON.parse(raw) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(items));
-    } catch {}
-  }, [items, storageKey]);
-
-  // Initial load from server (if authenticated); fall back to local storage
-  useEffect(() => {
-    const load = async () => {
-      // Reset immediately to avoid showing previous user's cart
-      if (!user) {
-        try {
-          const raw = localStorage.getItem('cart_guest');
-          setItems(raw ? JSON.parse(raw) : []);
-        } catch { setItems([]); }
-        return;
-      }
-      try {
-        const { data } = await api.get('/api/cart');
-        if (data && Array.isArray(data.items)) {
-          setItems(data.items);
-          // also mirror into user-specific storage
-          localStorage.setItem(`cart_${user._id}`, JSON.stringify(data.items));
-        } else {
-          setItems([]);
-        }
-      } catch {
-        // fallback to user-specific local storage if present
-        try {
-          const raw = localStorage.getItem(`cart_${user._id}`);
-          setItems(raw ? JSON.parse(raw) : []);
-        } catch { setItems([]); }
-      }
-    };
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, user?._id]);
-=======
   const { user, isAuthenticated } = useAuth();
   const [items, setItems] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -119,7 +65,6 @@ export const CartProvider = ({ children }) => {
       }
     }
   }, [items, isAuthenticated]);
->>>>>>> 9516d0b (Add local files and apply local edits (branch: muthu-sbranch))
 
   const clampQty = (qty, stock) => {
     const s = Number(stock ?? 0);
@@ -128,64 +73,6 @@ export const CartProvider = ({ children }) => {
     return qty;
   };
 
-<<<<<<< HEAD
-  const addItem = (product, qty = 1) => {
-    setItems((prev) => {
-      const idx = prev.findIndex((p) => p._id === product._id);
-      const max = Number(product.stock ?? 0);
-      if (idx >= 0) {
-        const copy = [...prev];
-        const nextQty = clampQty(copy[idx].qty + qty, max);
-        copy[idx] = { ...copy[idx], qty: nextQty };
-        return copy;
-      }
-      const initQty = clampQty(qty, max);
-      if (initQty <= 0) return prev;
-      return [...prev, { ...product, qty: initQty }];
-    });
-    // Sync to server (best-effort)
-    (async () => {
-      try {
-        await api.post('/api/cart', { productId: product._id, qty });
-      } catch {}
-    })();
-  };
-
-  const removeItem = (id) => {
-    setItems((prev) => prev.filter((p) => p._id !== id));
-    (async () => { try { await api.delete(`/api/cart/${id}`); } catch {} })();
-  };
-  const clear = () => {
-    setItems([]);
-    (async () => { try { await api.delete('/api/cart'); } catch {} })();
-  };
-
-  const updateQty = (id, qty, stock) => {
-    const clamped = (prevItem) => clampQty(qty, stock ?? prevItem.stock);
-    setItems((prev) => prev.map((p) => (p._id === id ? { ...p, qty: clamped(p) } : p)));
-    (async () => { try { await api.put(`/api/cart/${id}`, { qty }); } catch {} })();
-  };
-
-  const increment = (id) => {
-    setItems((prev) => prev.map((p) => (p._id === id ? { ...p, qty: clampQty((p.qty || 0) + 1, p.stock) } : p)));
-    (async () => { try { await api.put(`/api/cart/${id}`, { qty: (items.find(i => i._id === id)?.qty || 0) + 1 }); } catch {} })();
-  };
-
-  const decrement = (id) => {
-    setItems((prev) => prev.map((p) => (p._id === id ? { ...p, qty: Math.max((p.qty || 0) - 1, 1) } : p)));
-    (async () => { try { await api.put(`/api/cart/${id}`, { qty: Math.max((items.find(i => i._id === id)?.qty || 0) - 1, 1) }); } catch {} })();
-  };
-
-  const summary = useMemo(() => {
-    const countQty = items.reduce((a, b) => a + b.qty, 0);
-    const distinct = items.length;
-    const total = items.reduce((a, b) => a + Number(b.price || 0) * b.qty, 0);
-    return { countQty, distinct, total };
-  }, [items]);
-
-  return (
-    <CartContext.Provider value={{ items, addItem, removeItem, clear, updateQty, increment, decrement, summary }}>
-=======
   const addItem = useCallback(async (product, qty = 1) => {
     if (!product?._id) {
       console.error('No product ID provided');
@@ -231,6 +118,17 @@ export const CartProvider = ({ children }) => {
           return true;
         } catch (error) {
           console.error('Failed to update cart:', error.response?.data || error.message);
+          // Even if server request fails, try to update local state for better UX
+          const updatedItems = [...currentItems];
+          if (existingItemIndex >= 0) {
+            updatedItems[existingItemIndex].qty = newQty;
+          } else {
+            updatedItems.push({
+              ...product,
+              qty: newQty
+            });
+          }
+          setItems(updatedItems);
           return false;
         }
       } else {
@@ -251,33 +149,58 @@ export const CartProvider = ({ children }) => {
       console.error('Error adding item to cart:', error);
       return false;
     }
-  });
+  }, [isAuthenticated, items, loadCart]);
 
-  const removeItem = async (id) => {
+  const removeItem = useCallback(async (id) => {
     if (!id) return false;
     
     try {
+      // Store current items for potential rollback
+      const currentItems = [...items];
+      
+      // Update UI immediately for better UX
+      setItems(prev => prev.filter(item => item._id !== id));
+      
       if (isAuthenticated) {
-        // For authenticated users, update server first
         try {
-          await api.delete(`/api/cart/${id}`);
-          // Refresh cart from server
-          await loadCart();
+          // Use the correct endpoint with productId parameter
+          const response = await api.delete(`/api/cart/${id}`);
+          
+          // Update local state with the server response if available
+          if (response.data && Array.isArray(response.data.items)) {
+            setItems(response.data.items);
+            // Update local storage with the latest cart
+            try {
+              localStorage.setItem(`cart_${user._id}`, JSON.stringify(response.data.items));
+            } catch (e) {
+              console.error('Error updating local storage:', e);
+            }
+          } else {
+            // If response format is unexpected, refresh the entire cart
+            await loadCart();
+          }
           return true;
         } catch (error) {
           console.error('Failed to remove item from cart:', error);
+          // Revert to previous state on error
+          setItems(currentItems);
           return false;
         }
       } else {
-        // For guests, update local state directly
-        setItems(prev => prev.filter(item => item._id !== id));
+        // For guests, just update local storage
+        try {
+          const guestItems = items.filter(item => item._id !== id);
+          localStorage.setItem('cart_guest', JSON.stringify(guestItems));
+        } catch (e) {
+          console.error('Error updating guest cart in localStorage:', e);
+        }
         return true;
       }
     } catch (error) {
       console.error('Error removing item from cart:', error);
       return false;
     }
-  };
+  }, [isAuthenticated, loadCart]);
 
   const clear = async () => {
     try {
@@ -303,57 +226,92 @@ export const CartProvider = ({ children }) => {
     }
   };
 
-  const updateQty = async (id, qty, stock) => {
+  const updateQty = useCallback(async (id, qty, stock) => {
     try {
-      const itemToUpdate = items.find(item => item._id === id);
-      if (!itemToUpdate) return false;
-      
-      const newQty = clampQty(qty, stock ?? itemToUpdate.stock);
-      
-      if (isAuthenticated) {
-        // For authenticated users, update server first
-        try {
-          await api.put(`/api/cart/${id}`, { qty: newQty });
-          // Refresh cart from server
-          await loadCart();
-          return true;
-        } catch (error) {
-          console.error('Failed to update quantity:', error);
-          return false;
-        }
-      } else {
-        // For guests, update local state directly
-        setItems(prev => 
-          prev.map(item => 
-            item._id === id ? { ...item, qty: newQty } : item
-          )
+      setItems(prevItems => {
+        const itemToUpdate = prevItems.find(item => item._id === id);
+        if (!itemToUpdate) return prevItems;
+        
+        const newQty = clampQty(qty, stock ?? itemToUpdate.stock);
+        const updatedItems = prevItems.map(item => 
+          item._id === id ? { ...item, qty: newQty } : item
         );
-        return true;
+        
+        // For guest users, update local storage
+        if (!isAuthenticated) {
+          try {
+            localStorage.setItem('cart_guest', JSON.stringify(updatedItems));
+          } catch (e) {
+            console.error('Error saving cart to local storage:', e);
+            return prevItems; // Revert on error
+          }
+        }
+        
+        return updatedItems;
+      });
+      
+      // For authenticated users, update server
+      if (isAuthenticated) {
+        try {
+            const newQty = clampQty(qty, stock);
+            // Log request details for debugging
+            console.log('Updating cart qty on server', { id, qty: newQty });
+
+            // Send qty both as query param and in body to be robust against middleware differences
+            await api.put(`/api/cart/${id}?qty=${encodeURIComponent(newQty)}`, { qty: newQty });
+
+            // Refresh cart from server to ensure consistency
+            await loadCart();
+          } catch (error) {
+            console.error('Failed to update quantity on server:', error.response?.data || error.message);
+            // Revert on error by reloading server state
+            await loadCart();
+            return false;
+          }
       }
+      
+      return true;
     } catch (error) {
       console.error('Error updating quantity:', error);
       return false;
     }
-  };
+  }, [isAuthenticated, loadCart]);
 
-  const increment = async (id) => {
-    const item = items.find(p => p._id === id);
-    if (!item) return false;
-    
-    const newQty = clampQty((item.qty || 0) + 1, item.stock);
-    return await updateQty(id, newQty, item.stock);
-  };
-
-  const decrement = async (id) => {
-    const item = items.find(p => p._id === id);
-    if (!item) return false;
-    
-    const newQty = clampQty((item.qty || 0) - 1, item.stock);
-    if (newQty <= 0) {
-      return await removeItem(id);
+  const increment = useCallback(async (id) => {
+    try {
+      const item = items.find(p => p._id === id);
+      if (!item) return false;
+      // Use 0.5 increments to match UI which steps by 0.5 (kg)
+      const currentQty = parseFloat(item.qty) || 0;
+      const newQty = Math.round((currentQty + 0.5) * 100) / 100;
+      
+      if (newQty > (item.stock || 0)) return false;
+      
+      return await updateQty(id, newQty, item.stock);
+    } catch (error) {
+      console.error('Error incrementing quantity:', error);
+      return false;
     }
-    return await updateQty(id, newQty, item.stock);
-  };
+  }, [items, updateQty]);
+
+  const decrement = useCallback(async (id) => {
+    try {
+      const item = items.find(p => p._id === id);
+      if (!item) return false;
+      // Use 0.5 decrements to match UI
+      const currentQty = parseFloat(item.qty) || 0;
+      const newQty = Math.round((currentQty - 0.5) * 100) / 100;
+      
+      if (newQty <= 0) {
+        return await removeItem(id);
+      }
+      
+      return await updateQty(id, newQty, item.stock);
+    } catch (error) {
+      console.error('Error decrementing quantity:', error);
+      return false;
+    }
+  }, [items, updateQty, removeItem]);
 
   // Sync guest cart with server when user logs in
   useEffect(() => {
@@ -425,7 +383,6 @@ export const CartProvider = ({ children }) => {
 
   return (
     <CartContext.Provider value={value}>
->>>>>>> 9516d0b (Add local files and apply local edits (branch: muthu-sbranch))
       {children}
     </CartContext.Provider>
   );

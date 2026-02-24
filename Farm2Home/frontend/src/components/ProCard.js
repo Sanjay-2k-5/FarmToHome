@@ -1,45 +1,20 @@
-<<<<<<< HEAD
-import './Pro.css'
-import React from 'react'
-import { useCart } from '../contexts/CartContext';
-
-const ProCard = ({ product }) => {
-  const { addItem } = useCart();
-=======
 import './Pro.css';
 import React, { useState } from 'react';
-import { useCart } from '../contexts/CartContext';
+import { useCart } from '../contexts/NewCartContext';
 import { FaShoppingCart, FaCheck, FaExclamationTriangle } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 const ProCard = ({ product }) => {
-  const { addItem } = useCart();
+  const { addOrUpdateItem } = useCart();
   const [isAdding, setIsAdding] = useState(false);
   const [added, setAdded] = useState(false);
   const [error, setError] = useState(null);
   
->>>>>>> 9516d0b (Add local files and apply local edits (branch: muthu-sbranch))
   const imgSrc = product.imageUrl || product.img;
   const name = product.name;
   const price = Number(product.price || 0);
   const stock = Number(product.stock || 0);
-<<<<<<< HEAD
-  return (
-    <div className='project-card'>
-            <img src={imgSrc} alt={name} onError={(e)=>{ e.currentTarget.style.visibility='hidden'; }} />
-            <h2 className='project-title'>{name}</h2>
-            <div className='pro-details'>
-                <p>₹{price.toFixed(2)}</p>
-                <p className='text-muted' style={{marginTop: '-0.5rem'}}>In stock: {stock} kg</p>
-                <div className='pro-btns'>
-                   <button className="btn" onClick={() => addItem(product, 1)}>Add To Cart</button>
-                </div>
-          </div>
-    </div>
-  )
-}
-=======
   const description = product.description || '';
   
   const handleAddToCart = async () => {
@@ -49,7 +24,7 @@ const ProCard = ({ product }) => {
     setError(null);
     
     try {
-      const success = await addItem({
+      const success = await addOrUpdateItem({
         _id: product._id,
         name: product.name,
         price: product.price,
@@ -132,6 +107,5 @@ const ProCard = ({ product }) => {
     </div>
   );
 };
->>>>>>> 9516d0b (Add local files and apply local edits (branch: muthu-sbranch))
 
 export default ProCard;
