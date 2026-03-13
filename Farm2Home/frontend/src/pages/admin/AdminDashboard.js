@@ -47,7 +47,7 @@ const AdminDashboard = () => {
           trend: 'up'
         },
         {
-          title: 'Pending Orders',
+          title: 'Delivered Orders',
           value: (data.totalOrders || 0).toString(),
           icon: <FaShoppingCart className="text-info" />,
           change: '0%',
@@ -62,7 +62,7 @@ const AdminDashboard = () => {
         { title: 'Total Products', value: '0', icon: <FaBox className="text-primary" />, change: '0%', trend: 'up' },
         { title: 'Active Users', value: '0', icon: <FaUsers className="text-success" />, change: '0%', trend: 'up' },
         { title: 'Monthly Revenue', value: '₹0', icon: <FaRupeeSign className="text-warning" />, change: '0%', trend: 'up' },
-        { title: 'Pending Orders', value: '0', icon: <FaShoppingCart className="text-info" />, change: '0%', trend: 'down' }
+        { title: 'Delivered Orders', value: '0', icon: <FaShoppingCart className="text-info" />, change: '0%', trend: 'down' }
       ]);
     } finally {
       setLoading(false);
@@ -106,13 +106,13 @@ const AdminDashboard = () => {
           </Badge>
         </div>
       </div>
-      
+
       {error && (
         <Alert variant="danger" className="mb-4">
           {error}
         </Alert>
       )}
-      
+
       {loading ? (
         <div className="text-center py-5">
           <Spinner animation="border" role="status">
@@ -147,8 +147,8 @@ const AdminDashboard = () => {
         className="mb-3"
         fill
       >
-        <Tab 
-          eventKey="approvals" 
+        <Tab
+          eventKey="approvals"
           title={
             <div className="d-flex align-items-center">
               <FaCheckCircle className="me-2" />
@@ -165,9 +165,9 @@ const AdminDashboard = () => {
             <ProductApprovals />
           </div>
         </Tab>
-        
-        <Tab 
-          eventKey="products" 
+
+        <Tab
+          eventKey="products"
           title={
             <span>
               <FaBox className="me-2" />
@@ -176,15 +176,15 @@ const AdminDashboard = () => {
           }
         >
           <div className="mt-3">
-            <ProductsManager 
+            <ProductsManager
               onApprove={handleApprove}
               onReject={handleReject}
             />
           </div>
         </Tab>
-        
-        <Tab 
-          eventKey="users" 
+
+        <Tab
+          eventKey="users"
           title={
             <span>
               <FaUsers className="me-2" />
@@ -196,9 +196,9 @@ const AdminDashboard = () => {
             <UsersPanel />
           </div>
         </Tab>
-        
-        <Tab 
-          eventKey="revenue" 
+
+        <Tab
+          eventKey="revenue"
           title={
             <span>
               <FaRupeeSign className="me-2" />
@@ -210,9 +210,9 @@ const AdminDashboard = () => {
             <RevenuePanel />
           </div>
         </Tab>
-        
-        <Tab 
-          eventKey="reports" 
+
+        <Tab
+          eventKey="reports"
           title={
             <span>
               <FaChartLine className="me-2" />

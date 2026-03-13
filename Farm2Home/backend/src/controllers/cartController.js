@@ -18,12 +18,12 @@ const getUserWithCart = async (userId) => {
   if (!mongoose.Types.ObjectId.isValid(userId)) {
     throw new Error('Invalid user ID');
   }
-  
+
   const user = await User.findById(userId);
   if (!user) {
     throw new Error('User not found');
   }
-  
+
   return user;
 };
 
@@ -32,21 +32,21 @@ exports.getMyCart = async (req, res) => {
     if (!req.user || !req.user._id) {
       return res.status(401).json({ message: 'Not authenticated' });
     }
-    
+
     console.log('getMyCart called with user:', req.user._id);
-    
+
     // Get user with cart
     const user = await User.findById(req.user._id);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    
+
     // If cart doesn't exist, initialize it as an empty array
     if (!user.cart) {
       user.cart = [];
       await user.save();
     }
-    
+
     // Get product details for cart items
     const cartItems = [];
     for (const item of user.cart) {
@@ -68,11 +68,11 @@ exports.getMyCart = async (req, res) => {
         console.error(`Error processing cart item ${item.product}:`, error);
       }
     }
-    
+
     res.json({ items: cartItems });
   } catch (error) {
     console.error('Error in getMyCart:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Server error',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
@@ -84,46 +84,51 @@ exports.addOrIncrement = async (req, res) => {
     if (!req.user || !req.user._id) {
       return res.status(401).json({ message: 'Not authenticated' });
     }
-    
+
     const { productId, qty = 1 } = req.body;
-    
+
     // Validate input
     if (!productId || !mongoose.Types.ObjectId.isValid(productId)) {
       return res.status(400).json({ message: 'Valid productId is required' });
     }
-    
-    const parsedQty = Math.max(1, Math.min(Number(qty) || 1, 100)); // Limit max qty to 100
-    
+
+    // Ensure qty is a valid number
+    const requestedQty = Number(qty);
+    if (isNaN(requestedQty) || requestedQty <= 0) {
+      return res.status(400).json({ message: 'Quantity must be a valid number greater than 0' });
+    }
+    const parsedQty = Math.max(1, Math.min(requestedQty, 100)); // Limit max qty to 100
+
     console.log(`Adding/updating product ${productId} for user ${req.user._id}, qty: ${parsedQty}`);
-    
+
     const product = await Product.findById(productId);
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });
     }
-    
+
     // Get user with cart
     const user = await User.findById(req.user._id);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    
+
     // Initialize cart if it doesn't exist
     if (!user.cart) {
       user.cart = [];
     }
-    
+
     // Check if item already exists in cart
     const existingItemIndex = user.cart.findIndex(
       item => item.product.toString() === productId
     );
-    
+
     if (existingItemIndex >= 0) {
       // Update quantity if item exists
       const newQty = Math.min(
         user.cart[existingItemIndex].qty + parsedQty,
         product.stock
       );
-      
+
       if (newQty <= 0) {
         // Remove item if quantity is zero or negative
         user.cart.splice(existingItemIndex, 1);
@@ -147,10 +152,10 @@ exports.addOrIncrement = async (req, res) => {
         stock: product.stock
       });
     }
-    
+
     // Save the updated user with cart
     await user.save();
-    
+
     // Format the response
     const responseItems = user.cart.map(item => ({
       _id: item.product,
@@ -161,14 +166,14 @@ exports.addOrIncrement = async (req, res) => {
       description: item.description,
       qty: item.qty
     }));
-    
-    res.json({ 
+
+    res.json({
       message: 'Cart updated successfully',
       items: responseItems
     });
   } catch (error) {
     console.error('Error in addOrIncrement:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Server error',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
@@ -189,44 +194,44 @@ exports.removeItem = async (req, res) => {
     });
 
     const { id: productId } = req.params;
-    
+
     if (!mongoose.Types.ObjectId.isValid(productId)) {
       return res.status(400).json({ message: 'Valid product ID is required' });
     }
-    
+
     // Get user with cart
     const user = await User.findById(req.user._id);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    
+
     // Initialize cart if it doesn't exist
     if (!user.cart) {
       user.cart = [];
       await user.save();
       return res.json({ items: [] });
     }
-    
+
     // Find the index of the item to remove
     const itemIndex = user.cart.findIndex(
       item => item.product && item.product.toString() === productId
     );
-    
+
     if (itemIndex === -1) {
       return res.status(404).json({ message: 'Item not found in cart' });
     }
-    
+
     // Remove the item from the cart
     user.cart.splice(itemIndex, 1);
-    
+
     // Save the updated user with cart
     await user.save();
-    
+
     // If cart is empty after removal, return empty array
     if (user.cart.length === 0) {
       return res.json({ items: [], message: 'Item removed from cart' });
     }
-    
+
     // Get updated cart with product details
     const updatedCart = [];
     for (const item of user.cart) {
@@ -247,16 +252,16 @@ exports.removeItem = async (req, res) => {
         console.error(`Error processing product ${item.product}:`, error);
       }
     }
-    
-    res.json({ 
+
+    res.json({
       success: true,
       message: 'Item removed from cart',
       items: updatedCart
     });
-    
+
   } catch (error) {
     console.error('Error in removeItem:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Server error',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
@@ -266,9 +271,9 @@ exports.removeItem = async (req, res) => {
 exports.updateQty = async (req, res) => {
   try {
     if (!req.user || !req.user._id) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         success: false,
-        message: 'Not authenticated' 
+        message: 'Not authenticated'
       });
     }
     // Debug logging: print incoming request data to help diagnose 400 errors
@@ -282,24 +287,24 @@ exports.updateQty = async (req, res) => {
     // Get quantity from query parameters instead of request body
     const qty = req.query.qty || req.body.qty;
     const { id } = req.params;
-    
+
     // Validate input
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: 'Valid product ID is required' 
+        message: 'Valid product ID is required'
       });
     }
-    
+
     // Find the product first to validate stock
     const product = await Product.findById(id);
     if (!product) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: 'Product not found' 
+        message: 'Product not found'
       });
     }
-    
+
     // Convert quantity to a number and ensure it's between 0.5 and 1000
     const parsedQty = parseFloat(qty);
     if (isNaN(parsedQty) || parsedQty < 0.5) {
@@ -308,7 +313,7 @@ exports.updateQty = async (req, res) => {
         message: 'Quantity must be at least 0.5'
       });
     }
-    
+
     // Ensure quantity doesn't exceed 1000 units or available stock
     const maxQty = Math.min(1000, product.stock || 1000);
     if (parsedQty > maxQty) {
@@ -317,28 +322,28 @@ exports.updateQty = async (req, res) => {
         message: `Maximum quantity is ${maxQty} units`
       });
     }
-    
+
     // Get user with cart
     const user = await User.findById(req.user._id);
     if (!user) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: 'User not found' 
+        message: 'User not found'
       });
     }
-    
+
     // Initialize cart if it doesn't exist
     if (!user.cart) {
       user.cart = [];
     }
-    
+
     // Find the item in cart
     const itemIndex = user.cart.findIndex(
       item => item.product && item.product.toString() === id
     );
-    
+
     if (itemIndex === -1) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
         message: 'Item not found in cart',
         items: user.cart.map(item => ({
@@ -352,7 +357,7 @@ exports.updateQty = async (req, res) => {
         }))
       });
     }
-    
+
     if (parsedQty <= 0) {
       // Remove item if quantity is zero or negative
       user.cart.splice(itemIndex, 1);
@@ -373,10 +378,10 @@ exports.updateQty = async (req, res) => {
         user.cart[itemIndex].stock = product.stock;
       }
     }
-    
+
     // Save the updated user with cart
     await user.save();
-    
+
     // Format the response
     const responseItems = user.cart.map(item => ({
       _id: item.product,
@@ -387,16 +392,16 @@ exports.updateQty = async (req, res) => {
       description: item.description,
       qty: item.qty
     }));
-    
-    res.json({ 
+
+    res.json({
       success: true,
       message: 'Cart updated successfully',
       items: responseItems
     });
-    
+
   } catch (error) {
     console.error('Error in updateQty:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Server error',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
@@ -408,25 +413,25 @@ exports.clearCart = async (req, res) => {
     if (!req.user || !req.user._id) {
       return res.status(401).json({ message: 'Not authenticated' });
     }
-    
+
     // Get user and clear the cart
     const user = await User.findById(req.user._id);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    
+
     // Clear the cart
     user.cart = [];
     await user.save();
-    
-    res.json({ 
+
+    res.json({
       message: 'Cart cleared successfully',
       items: []
     });
-    
+
   } catch (error) {
     console.error('Error in clearCart:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Server error',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });

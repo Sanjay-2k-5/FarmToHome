@@ -38,7 +38,7 @@ const OrderDetailPage = () => {
     };
 
     const statusConfig = statusMap[status] || { variant: 'secondary', icon: <FaInfoCircle className="me-1" /> };
-    
+
     return (
       <Badge bg={statusConfig.variant} className="d-inline-flex align-items-center">
         {statusConfig.icon}
@@ -92,18 +92,18 @@ const OrderDetailPage = () => {
 
   return (
     <Container className="py-4">
-      <Button 
-        variant="link" 
-        onClick={() => navigate(-1)} 
+      <Button
+        variant="link"
+        onClick={() => navigate(-1)}
         className="mb-3 d-flex align-items-center p-0"
       >
         <FaArrowLeft className="me-2" /> Back to Orders
       </Button>
-      
-      <h2 className="mb-4" style={{color: 'black'}}>Order #{order.orderNumber || order._id.substring(18).toUpperCase()}</h2>
-      
+
+      <h2 className="mb-4" style={{ color: 'black' }}>Order #{order.orderNumber || order._id.substring(18).toUpperCase()}</h2>
+
       {error && <Alert variant="danger">{error}</Alert>}
-      
+
       <Row className="mb-4">
         <Col md={8}>
           <Card className="mb-4">
@@ -123,13 +123,13 @@ const OrderDetailPage = () => {
                     <tr key={index}>
                       <td>
                         <div className="d-flex align-items-center">
-                          <img 
-                            src={item.product?.image || '/images/placeholder.png'} 
-                            alt={item.name} 
+                          <img
+                            src={item.product?.imageUrl || item.imageUrl || 'https://via.placeholder.com/50x50?text=No+Image'}
+                            alt={item.name}
                             style={{ width: '50px', height: '50px', objectFit: 'cover', marginRight: '15px' }}
                             onError={(e) => {
                               e.target.onerror = null;
-                              e.target.src = '/images/placeholder.png';
+                              e.target.src = 'https://via.placeholder.com/50x50?text=No+Image';
                             }}
                           />
                           <div>
@@ -153,7 +153,7 @@ const OrderDetailPage = () => {
               </Table>
             </Card.Body>
           </Card>
-          
+
           {order.statusHistory && order.statusHistory.length > 0 && (
             <Card>
               <Card.Header as="h5">Order Status History</Card.Header>
@@ -179,7 +179,7 @@ const OrderDetailPage = () => {
             </Card>
           )}
         </Col>
-        
+
         <Col md={4}>
           <Card className="mb-4">
             <Card.Header as="h5">Order Summary</Card.Header>
@@ -214,7 +214,7 @@ const OrderDetailPage = () => {
               </ListGroup>
             </Card.Body>
           </Card>
-          
+
           <Card>
             <Card.Header as="h5">Delivery Address</Card.Header>
             <Card.Body>

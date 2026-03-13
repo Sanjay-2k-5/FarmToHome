@@ -1,6 +1,7 @@
 const Order = require('../models/Order');
 const User = require('../models/User');
 const Product = require('../models/Product');
+const Revenue = require('../models/Revenue');
 const mongoose = require('mongoose');
 
 // @desc    Get total revenue from delivered orders
@@ -20,7 +21,7 @@ exports.getDeliveredOrdersRevenue = async (req, res) => {
     ]);
 
     const stats = result[0] || { totalRevenue: 0, orderCount: 0 };
-    
+
     res.status(200).json({
       success: true,
       totalRevenue: stats.totalRevenue,
@@ -76,47 +77,44 @@ exports.createOrder = async (req, res) => {
 
     // Process each item in cart
     for (const cartItem of user.cart) {
-      const product = await Product.findById(cartItem.product).session(session);
-      
-      if (!product) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(404).json({
-          success: false,
-          message: `Product ${cartItem.name} not found`
-        });
-      }
+      // Find the product and atomically decrement stock ONLY IF sufficient stock exists
+      const updatedProduct = await Product.findOneAndUpdate(
+        { _id: cartItem.product, stock: { $gte: cartItem.qty } },
+        { $inc: { stock: -cartItem.qty } },
+        { new: true, session }
+      );
 
-      // Check stock
-      if (product.stock < cartItem.qty) {
+      if (!updatedProduct) {
+        // If findOneAndUpdate returns null, it means either product is missing or stock < qty
+        const product = await Product.findById(cartItem.product).session(session);
         await session.abortTransaction();
         session.endSession();
-        return res.status(400).json({
-          success: false,
-          message: `Insufficient stock for ${product.name}. Only ${product.stock} available`
-        });
+
+        if (!product) {
+          return res.status(404).json({
+            success: false,
+            message: `Product ${cartItem.name} not found`
+          });
+        } else {
+          return res.status(400).json({
+            success: false,
+            message: `Insufficient stock for ${product.name}. Only ${product.stock} available`
+          });
+        }
       }
 
       // Add to order items
       const itemTotal = cartItem.price * cartItem.qty;
       orderItems.push({
-        product: product._id,
-        name: product.name,
-        imageUrl: product.imageUrl || product.img || '',
+        product: updatedProduct._id,
+        name: updatedProduct.name,
+        imageUrl: updatedProduct.imageUrl || updatedProduct.img || '',
         price: cartItem.price,
         qty: cartItem.qty,
         total: itemTotal
       });
 
       subtotal += itemTotal;
-
-      // Prepare product stock update
-      productUpdates.push({
-        updateOne: {
-          filter: { _id: product._id },
-          update: { $inc: { stock: -cartItem.qty } }
-        }
-      });
     }
 
     // Calculate totals
@@ -138,11 +136,6 @@ exports.createOrder = async (req, res) => {
 
     await order.save({ session });
 
-    // Update product stocks
-    if (productUpdates.length > 0) {
-      await Product.bulkWrite(productUpdates, { session });
-    }
-
     // Clear user's cart
     user.cart = [];
     await user.save({ session });
@@ -159,7 +152,7 @@ exports.createOrder = async (req, res) => {
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
-    
+
     console.error('Error creating order:', error);
     res.status(500).json({
       success: false,
@@ -177,7 +170,7 @@ exports.getFarmerOrders = async (req, res) => {
     const orders = await Order.find({ status: 'pending' })
       .populate('user', 'fname lname email')
       .sort({ createdAt: -1 });
-      
+
     res.json({ success: true, orders });
   } catch (error) {
     console.error('Error fetching farmer orders:', error);
@@ -195,7 +188,7 @@ exports.updateOrderStatus = async (req, res) => {
   try {
     const { status } = req.body;
     const { id } = req.params;
-    
+
     if (!['accepted', 'rejected', 'shipped', 'delivered'].includes(status)) {
       return res.status(400).json({ success: false, message: 'Invalid status' });
     }
@@ -208,7 +201,17 @@ exports.updateOrderStatus = async (req, res) => {
     // Update order status
     order.status = status;
     order.updatedAt = new Date();
-    
+
+    if (status === 'delivered') {
+      order.deliveredAt = new Date();
+      const revenue = new Revenue({
+        order: order._id,
+        amount: order.total,
+        status: 'pending'
+      });
+      await revenue.save({ session });
+    }
+
     // If order is rejected, return stock to inventory
     if (status === 'rejected') {
       for (const item of order.items) {
@@ -244,10 +247,10 @@ exports.getMyOrders = async (req, res) => {
     const orders = await Order.find({ user: req.user._id })
       .sort({ createdAt: -1 })
       .lean(); // Convert to plain JavaScript objects
-    
+
     // Calculate total amount for all orders
     const totalAmount = orders.reduce((sum, order) => sum + (order.total || 0), 0);
-    
+
     res.json({
       success: true,
       count: orders.length,
@@ -278,7 +281,7 @@ exports.getMyOrders = async (req, res) => {
 exports.getOrderById = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id);
-    
+
     if (!order) {
       return res.status(404).json({
         success: false,
@@ -293,7 +296,7 @@ exports.getOrderById = async (req, res) => {
         message: 'Not authorized to access this order'
       });
     }
-    
+
     res.json({
       success: true,
       order

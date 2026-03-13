@@ -23,9 +23,9 @@ const Pro = () => {
   // Filter products based on search term and category
   const filteredProducts = useMemo(() => {
     let result = [...products];
-    
+
     console.log('Filtering with category:', categoryFilter);
-    
+
     // Apply category filter
     if (categoryFilter !== 'all') {
       result = result.filter(product => {
@@ -39,16 +39,16 @@ const Pro = () => {
     } else {
       console.log('Showing all categories');
     }
-    
+
     // Apply search filter
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
-      result = result.filter(product => 
+      result = result.filter(product =>
         product.name.toLowerCase().includes(term) ||
         (product.description && product.description.toLowerCase().includes(term))
       );
     }
-    
+
     return result;
   }, [products, searchTerm, categoryFilter]);
 
@@ -56,11 +56,15 @@ const Pro = () => {
     const load = async () => {
       setLoading(true);
       try {
+        // Fetch only active products for the public store
         const { data } = await api.get('/api/products?availability=active&sort=newest');
         const productsData = Array.isArray(data) ? data : [];
-        console.log('Products with categories:', productsData.map(p => ({
+        console.log('Products fetched:', productsData.map(p => ({
           name: p.name,
           category: p.category,
+          imageUrl: p.imageUrl,
+          isActive: p.isActive,
+          status: p.status,
           id: p._id
         })));
         setProducts(productsData);
@@ -77,7 +81,7 @@ const Pro = () => {
   return (
     <div className='work-container text-color white'>
       <h1 className='project-heading'>Our Products</h1>
-      
+
       {/* Search and Filter Section */}
       <div className="search-filter-container">
         {/* Search Bar */}
@@ -93,10 +97,10 @@ const Pro = () => {
             />
           </div>
         </div>
-        
+
         {/* Category Filter */}
         <div className="category-filter">
-          <Form.Select 
+          <Form.Select
             aria-label="Filter by category"
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
@@ -110,7 +114,7 @@ const Pro = () => {
           </Form.Select>
         </div>
       </div>
-      
+
       <div className='project-container'>
         {loading ? (
           <div className="text-muted" style={{ padding: '2rem', gridColumn: '1 / -1', textAlign: 'center' }}>

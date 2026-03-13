@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const { protect, authorize } = require('../middleware/auth');
-const upload = require('../middleware/upload');
 const { 
   getFarmerOrders, 
   updateOrderStatus 
@@ -23,7 +22,7 @@ router.put('/update-order-status/:id', updateOrderStatus);
 // Product management - Farmer specific routes
 router.route('/products')
   .get(getFarmerProducts)
-  .post(upload.single('image'), createProduct);
+  .post(createProduct);
 
 router.delete('/products/:id', deleteProduct);
 

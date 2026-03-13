@@ -19,7 +19,7 @@ const CartPage = () => {
 
   const handleQuantityChange = async (productId, newQty) => {
     if (newQty < 0.5) return; // Minimum quantity is 0.5
-    
+
     try {
       // Find the item to check stock
       const item = items.find(item => item._id === productId);
@@ -28,13 +28,13 @@ const CartPage = () => {
         await loadCart(); // Try to refresh the cart
         return;
       }
-      
+
       // Ensure we don't exceed available stock
       const quantity = Math.min(newQty, item.stock || Infinity);
-      
+
       // Update the quantity
       const success = await updateQty(productId, quantity);
-      
+
       // If update failed, refresh the cart
       if (!success) {
         await loadCart();
@@ -144,13 +144,13 @@ const CartPage = () => {
                       <tr key={item._id}>
                         <td>
                           <div className="d-flex align-items-center">
-                            <img 
-                              src={item.imageUrl || '/placeholder-product.jpg'} 
+                            <img
+                              src={item.imageUrl || 'https://via.placeholder.com/60x60?text=No+Image'}
                               alt={item.name}
                               style={{ width: '60px', height: '60px', objectFit: 'cover', marginRight: '15px' }}
                               onError={(e) => {
                                 e.target.onerror = null;
-                                e.target.src = '/placeholder-product.jpg';
+                                e.target.src = 'https://via.placeholder.com/60x60?text=No+Image';
                               }}
                             />
                             <div>
@@ -162,8 +162,8 @@ const CartPage = () => {
                         <td>₹{item.price.toFixed(2)}</td>
                         <td>
                           <div className="d-flex align-items-center">
-                            <Button 
-                              variant="outline-secondary" 
+                            <Button
+                              variant="outline-secondary"
                               size="sm"
                               onClick={() => handleDecrement(item)}
                               disabled={item.qty <= 1 || isRemoving[item._id]}
@@ -179,8 +179,8 @@ const CartPage = () => {
                               className="mx-2 text-center"
                               style={{ width: '70px' }}
                             />
-                            <Button 
-                              variant="outline-secondary" 
+                            <Button
+                              variant="outline-secondary"
                               size="sm"
                               onClick={() => handleIncrement(item)}
                               disabled={item.qty >= item.stock || isRemoving[item._id]}
@@ -191,9 +191,9 @@ const CartPage = () => {
                         </td>
                         <td className="text-end">₹{(item.price * item.qty).toFixed(2)}</td>
                         <td className="text-end">
-                          <Button 
-                            variant="outline-danger" 
-                            size="sm" 
+                          <Button
+                            variant="outline-danger"
+                            size="sm"
                             onClick={() => handleRemoveItem(item._id)}
                             disabled={isRemoving[item._id]}
                           >
@@ -209,8 +209,8 @@ const CartPage = () => {
                   </tbody>
                 </Table>
                 <div className="d-flex justify-content-end">
-                  <Button 
-                    variant="outline-danger" 
+                  <Button
+                    variant="outline-danger"
                     onClick={handleClearCart}
                     disabled={isLoading}
                   >
@@ -220,7 +220,7 @@ const CartPage = () => {
               </Card.Body>
             </Card>
           </Col>
-          
+
           <Col lg={4}>
             <Card>
               <Card.Body>
@@ -239,8 +239,8 @@ const CartPage = () => {
                   <h5>₹{total.toFixed(2)}</h5>
                 </div>
                 {isAuthenticated ? (
-                  <Button 
-                    variant="primary" 
+                  <Button
+                    variant="primary"
                     className="w-100 mb-2"
                     onClick={() => navigate('/checkout')}
                     disabled={items.length === 0 || isLoading}
@@ -249,10 +249,10 @@ const CartPage = () => {
                   </Button>
                 ) : (
                   <div className="text-center">
-                    <Button 
-                      variant="primary" 
+                    <Button
+                      variant="primary"
                       className="w-100 mb-2"
-                      onClick={() => navigate('/login', { state: { from: '/checkout' }})}
+                      onClick={() => navigate('/login', { state: { from: '/checkout' } })}
                       disabled={items.length === 0 || isLoading}
                     >
                       Login to Checkout

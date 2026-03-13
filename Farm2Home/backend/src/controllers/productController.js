@@ -5,11 +5,16 @@ const Product = require('../models/Product');
 // @access  Public (adjust as needed)
 exports.getProducts = async (req, res) => {
   try {
-    const { category, availability, sort } = req.query;
+    const { category, availability, sort, includeInactive } = req.query;
     const filter = {};
     if (category && category !== 'all') filter.category = category;
-    if (availability === 'active') filter.isActive = true;
-    if (availability === 'inactive') filter.isActive = false;
+    
+    // Only apply availability filter if not explicitly including inactive products
+    if (includeInactive !== 'true') {
+      if (availability === 'active') filter.isActive = true;
+      if (availability === 'inactive') filter.isActive = false;
+    }
+    
     let sortOpt = { createdAt: -1 };
     // If availability filter is applied, sort by stock desc primarily
     if (availability === 'active' || availability === 'inactive') {
@@ -18,6 +23,20 @@ exports.getProducts = async (req, res) => {
       sortOpt = { createdAt: 1 };
     }
     const products = await Product.find(filter).sort(sortOpt);
+    
+    // Log for debugging
+    console.log('getProducts - Filter:', filter);
+    console.log('getProducts - Found products:', products.length);
+    if (products.length > 0) {
+      console.log('Sample product:', {
+        _id: products[0]._id,
+        name: products[0].name,
+        imageUrl: products[0].imageUrl,
+        isActive: products[0].isActive,
+        status: products[0].status
+      });
+    }
+    
     res.json(products);
   } catch (err) {
     console.error(err);

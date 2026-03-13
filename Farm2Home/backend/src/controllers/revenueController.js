@@ -31,7 +31,13 @@ exports.getRevenueStats = async (req, res) => {
 
     // Get pending revenue (not yet processed)
     const pendingRevenue = await Revenue.find({ status: 'pending' })
-      .populate('order', 'orderNumber total')
+      .populate({
+        path: 'order',
+        populate: {
+          path: 'user',
+          select: 'fname lname email'
+        }
+      })
       .sort({ createdAt: -1 });
 
     res.json({
@@ -58,7 +64,7 @@ exports.getRevenueStats = async (req, res) => {
 exports.processRevenue = async (req, res) => {
   try {
     const revenue = await Revenue.findById(req.params.id);
-    
+
     if (!revenue) {
       return res.status(404).json({
         success: false,

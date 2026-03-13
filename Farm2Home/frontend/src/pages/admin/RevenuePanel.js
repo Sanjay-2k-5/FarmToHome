@@ -19,11 +19,13 @@ const RevenuePanel = () => {
         api.get('/api/admin/revenue'),
         api.get('/api/orders/revenue')
       ]);
-      
+
+      const revData = revenueRes.data?.data || {};
+
       setRevenueData({
-        total: revenueRes.data?.total || 0,
-        monthly: revenueRes.data?.monthly || [],
-        pending: revenueRes.data?.pending || [],
+        total: revData.total || 0,
+        monthly: revData.monthly || [],
+        pending: revData.pending || [],
         delivered: {
           totalRevenue: deliveredRes.data?.totalRevenue || 0,
           orderCount: deliveredRes.data?.orderCount || 0
@@ -79,18 +81,8 @@ const RevenuePanel = () => {
   return (
     <div>
       <Row className="mb-4">
-        <Col md={4}>
-          <Card className="h-100">
-            <Card.Body>
-              <Card.Title>Total Revenue</Card.Title>
-              <Card.Text className="display-6 fw-bold">
-                {formatCurrency(revenueData.total)}
-              </Card.Text>
-              <div className="text-muted">All time processed revenue</div>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={4}>
+
+        <Col md={6}>
           <Card className="h-100">
             <Card.Body>
               <Card.Title>Delivered Orders</Card.Title>
@@ -101,7 +93,7 @@ const RevenuePanel = () => {
             </Card.Body>
           </Card>
         </Col>
-        <Col md={4}>
+        <Col md={6}>
           <Card className="h-100">
             <Card.Body>
               <Card.Title>Delivered Revenue</Card.Title>
@@ -114,7 +106,7 @@ const RevenuePanel = () => {
         </Col>
       </Row>
 
-      <Card className="mb-4">
+      {/* <Card className="mb-4">
         <Card.Body>
           <Card.Title>Pending Revenue</Card.Title>
           {revenueData.pending.length === 0 ? (
@@ -134,9 +126,9 @@ const RevenuePanel = () => {
               <tbody>
                 {revenueData.pending.map((item) => (
                   <tr key={item._id}>
-                    <td>{item.orderId}</td>
+                    <td>{item.order?._id || item.order}</td>
                     <td>{formatDate(item.date)}</td>
-                    <td>{item.customerName || 'N/A'}</td>
+                    <td>{item.order?.user?.fname ? `${item.order.user.fname} ${item.order.user.lname}` : 'N/A'}</td>
                     <td className="text-end">{formatCurrency(item.amount)}</td>
                     <td>
                       <Badge bg="warning">Pending</Badge>
@@ -164,9 +156,9 @@ const RevenuePanel = () => {
             </Table>
           )}
         </Card.Body>
-      </Card>
+      </Card> */}
 
-      <Card>
+      {/* <Card>
         <Card.Body>
           <Card.Title>Monthly Revenue</Card.Title>
           {revenueData.monthly.length === 0 ? (
@@ -181,21 +173,25 @@ const RevenuePanel = () => {
                 </tr>
               </thead>
               <tbody>
-                {revenueData.monthly.map((month) => (
-                  <tr key={`${month.year}-${month.month}`}>
-                    <td>
-                      {new Date(2000, month.month - 1, 1).toLocaleString('default', { month: 'long' })}{' '}
-                      {month.year}
-                    </td>
-                    <td className="text-end">{month.count || 0}</td>
-                    <td className="text-end">{formatCurrency(month.total || 0)}</td>
-                  </tr>
-                ))}
+                {revenueData.monthly.map((monthItem) => {
+                  const m = monthItem._id?.month || monthItem.month;
+                  const y = monthItem._id?.year || monthItem.year;
+                  return (
+                    <tr key={`${y}-${m}`}>
+                      <td>
+                        {m ? new Date(2000, m - 1, 1).toLocaleString('default', { month: 'long' }) : 'Unknown'}{' '}
+                        {y}
+                      </td>
+                      <td className="text-end">{monthItem.count || 0}</td>
+                      <td className="text-end">{formatCurrency(monthItem.total || 0)}</td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </Table>
           )}
         </Card.Body>
-      </Card>
+      </Card> */}
     </div>
   );
 };

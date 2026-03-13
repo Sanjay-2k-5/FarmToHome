@@ -93,9 +93,9 @@ const ProductApprovals = () => {
   return (
     <Container className="py-4">
       <h2 className="mb-4">Product Approvals</h2>
-      
+
       {error && <Alert variant="danger">{error}</Alert>}
-      
+
       <Card className="shadow-sm">
         <Card.Header className="bg-light">
           <h5 className="mb-0">Pending Product Approvals</h5>
@@ -121,15 +121,19 @@ const ProductApprovals = () => {
                       <td>
                         <div className="d-flex align-items-center">
                           {product.imageUrl ? (
-                            <img 
-                              src={product.imageUrl} 
+                            <img
+                              src={product.imageUrl}
                               alt={product.name}
                               className="rounded me-3"
                               style={{ width: '50px', height: '50px', objectFit: 'cover' }}
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.src = 'https://via.placeholder.com/50?text=No+Image';
+                              }}
                             />
                           ) : (
-                            <div className="bg-light rounded d-flex align-items-center justify-content-center me-3" 
-                                 style={{ width: '50px', height: '50px' }}>
+                            <div className="bg-light rounded d-flex align-items-center justify-content-center me-3"
+                              style={{ width: '50px', height: '50px' }}>
                               <small>No Image</small>
                             </div>
                           )}
@@ -209,8 +213,8 @@ const ProductApprovals = () => {
           {error && <Alert variant="danger">{error}</Alert>}
         </Modal.Body>
         <Modal.Footer>
-          <Button 
-            variant="secondary" 
+          <Button
+            variant="secondary"
             onClick={() => {
               setShowRejectModal(false);
               setError('');
@@ -219,8 +223,8 @@ const ProductApprovals = () => {
           >
             Cancel
           </Button>
-          <Button 
-            variant="danger" 
+          <Button
+            variant="danger"
             onClick={handleReject}
             disabled={processing || !rejectionReason.trim()}
           >

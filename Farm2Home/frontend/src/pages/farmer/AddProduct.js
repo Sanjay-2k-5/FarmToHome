@@ -13,13 +13,13 @@ const AddProduct = () => {
     stock: '',
     // Use category values that match backend enums: 'fruit','vegetable','other'
     category: 'fruit',
-    image: null
+    imageUrl: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [preview, setPreview] = useState('');
 
-  const { name, description, price, stock, category, image } = formData;
+  const { name, description, price, stock, category, imageUrl } = formData;
 
   const handleChange = (e) => {
     setFormData({
@@ -28,14 +28,17 @@ const AddProduct = () => {
     });
   };
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setFormData({
-        ...formData,
-        image: file
-      });
-      setPreview(URL.createObjectURL(file));
+  const handleImageUrlChange = (e) => {
+    const url = e.target.value;
+    setFormData({
+      ...formData,
+      imageUrl: url
+    });
+    // Update preview if URL is valid
+    if (url) {
+      setPreview(url);
+    } else {
+      setPreview('');
     }
   };
 
@@ -52,36 +55,28 @@ const AddProduct = () => {
     }
 
     try {
-      const formDataToSend = new FormData();
-      
-      // Append all form fields
-      formDataToSend.append('name', name.trim());
-      formDataToSend.append('description', description.trim());
-      formDataToSend.append('price', parseFloat(price));
-      formDataToSend.append('stock', parseInt(stock, 10));
-      formDataToSend.append('category', category);
-      
-      // Append the image file if it exists
-      if (image) {
-        formDataToSend.append('image', image);
+      const parsedPrice = parseFloat(price);
+      const parsedStock = parseInt(stock, 10);
+
+      if (isNaN(parsedPrice) || isNaN(parsedStock)) {
+        setError('Price and stock must be valid numbers');
+        setLoading(false);
+        return;
       }
 
-      console.log('Form data being sent:', {
+      const payload = {
         name: name.trim(),
-        price: parseFloat(price),
-        stock: parseInt(stock, 10),
-        category,
-        hasImage: !!image
-      });
+        description: description.trim(),
+        price: parsedPrice,
+        stock: parsedStock,
+        category: category,
+        imageUrl: imageUrl.trim()
+      };
 
-      const response = await api.post('/api/farmer/products', formDataToSend, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        withCredentials: true
-      });
-      
+      console.log('Form data being sent:', payload);
+
+      const response = await api.post('/api/farmer/products', payload);
+
       if (response.data.success) {
         // Show success message and redirect to products page
         alert('Product submitted for admin approval');
@@ -103,8 +98,8 @@ const AddProduct = () => {
 
   return (
     <Container className="py-4">
-      <Button 
-        variant="outline-secondary" 
+      <Button
+        variant="outline-secondary"
         className="mb-3 d-flex align-items-center gap-2"
         onClick={() => navigate(-1)}
       >
@@ -117,7 +112,7 @@ const AddProduct = () => {
         </Card.Header>
         <Card.Body>
           {error && <Alert variant="danger">{error}</Alert>}
-          
+
           <Form onSubmit={handleSubmit}>
             <Row>
               <Col md={6}>
@@ -179,9 +174,9 @@ const AddProduct = () => {
 
                 <Form.Group className="mb-3">
                   <Form.Label>Category *</Form.Label>
-                  <Form.Select 
-                    name="category" 
-                    value={category} 
+                  <Form.Select
+                    name="category"
+                    value={category}
                     onChange={handleChange}
                     required
                   >
@@ -194,50 +189,47 @@ const AddProduct = () => {
 
               <Col md={6}>
                 <Form.Group className="mb-3">
-                  <Form.Label>Product Image</Form.Label>
-                  <div className="border rounded p-3 text-center">
-                    {preview ? (
-                      <img 
-                        src={preview} 
-                        alt="Preview" 
-                        className="img-fluid mb-3" 
-                        style={{ maxHeight: '200px' }}
-                      />
-                    ) : (
-                      <div className="py-5 text-muted">
-                        <FaUpload size={48} className="mb-2" />
-                        <p>Upload a product image</p>
-                      </div>
-                    )}
-                    <Form.Control
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageChange}
-                      className="d-none"
-                      id="product-image"
-                    />
-                    <Button 
-                      variant="outline-primary" 
-                      onClick={() => document.getElementById('product-image').click()}
-                    >
-                      {preview ? 'Change Image' : 'Choose Image'}
-                    </Button>
-                  </div>
+                  <Form.Label>Product Image URL</Form.Label>
+                  <Form.Control
+                    type="url"
+                    name="imageUrl"
+                    value={imageUrl}
+                    onChange={handleImageUrlChange}
+                    placeholder="Enter image URL (e.g., https://example.com/image.jpg)"
+                  />
+                  <small className="text-muted d-block mt-2">
+                    Provide a direct URL to your product image
+                  </small>
                 </Form.Group>
+                {preview && (
+                  <div className="border rounded p-3 text-center mb-3">
+                    <img
+                      src={preview}
+                      alt="Preview"
+                      className="img-fluid"
+                      style={{ maxHeight: '200px' }}
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = 'https://via.placeholder.com/200?text=Invalid+Image';
+                      }}
+                    />
+                    <small className="text-muted d-block mt-2">Image Preview</small>
+                  </div>
+                )}
               </Col>
             </Row>
 
             <div className="d-flex justify-content-end gap-2 mt-4">
-              <Button 
-                variant="outline-secondary" 
+              <Button
+                variant="outline-secondary"
                 onClick={() => navigate('/farmer/products')}
                 disabled={loading}
               >
                 Cancel
               </Button>
-              <Button 
-                type="submit" 
-                variant="primary" 
+              <Button
+                type="submit"
+                variant="primary"
                 disabled={loading}
               >
                 {loading ? 'Adding...' : 'Add Product'}

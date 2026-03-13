@@ -1,5 +1,6 @@
 const Order = require('../models/Order');
 const Product = require('../models/Product');
+const Revenue = require('../models/Revenue');
 const mongoose = require('mongoose');
 
 // @desc    Get orders for farmer's products
@@ -8,8 +9,8 @@ const mongoose = require('mongoose');
 exports.getFarmerOrders = async (req, res) => {
   try {
     // In a real app, you would filter orders to only include products from this farmer
-    // For now, we'll return all orders
-    const orders = await Order.find({})
+    // For now, we filter for active order states that farmers need to review or process
+    const orders = await Order.find({ status: { $in: ['pending', 'processing'] } })
       .sort({ createdAt: -1 })
       .populate('user', 'fname lname email');
 
@@ -33,13 +34,13 @@ exports.getFarmerOrders = async (req, res) => {
 // @access  Private/Farmer
 exports.updateOrderStatus = async (req, res) => {
   let session;
-  
+
   try {
     const { status, reason } = req.body;
     const { id } = req.params;
-    
+
     console.log('Updating order status:', { id, status, reason });
-    
+
     const validStatuses = ['pending', 'accepted', 'rejected', 'processing', 'shipped', 'delivered', 'cancelled'];
 
     if (!validStatuses.includes(status)) {
@@ -74,11 +75,23 @@ exports.updateOrderStatus = async (req, res) => {
       reason: (status === 'rejected' || status === 'cancelled') ? (reason || 'No reason provided') : undefined,
       changedBy: req.user._id
     });
-    
+
     // Update order status
     order.status = status;
     order.updatedAt = new Date();
-    
+
+    // If order is delivered, update and record revenue
+    if (status === 'delivered') {
+      order.deliveredAt = new Date();
+
+      const revenue = new Revenue({
+        order: order._id,
+        amount: order.total,
+        status: 'pending'
+      });
+      await revenue.save({ session });
+    }
+
     // If order is cancelled, return stock to inventory
     if (status === 'cancelled' || status === 'rejected') {
       console.log('Returning stock to inventory for order:', order._id);
@@ -93,7 +106,7 @@ exports.updateOrderStatus = async (req, res) => {
 
     await order.save({ session });
     await session.commitTransaction();
-    
+
     console.log('Order status updated successfully:', order._id, 'New status:', status);
 
     res.json({
@@ -108,7 +121,7 @@ exports.updateOrderStatus = async (req, res) => {
 
   } catch (error) {
     console.error('Error in updateOrderStatus:', error);
-    
+
     if (session) {
       try {
         await session.abortTransaction();
@@ -116,7 +129,7 @@ exports.updateOrderStatus = async (req, res) => {
         console.error('Error aborting transaction:', abortError);
       }
     }
-    
+
     res.status(500).json({
       success: false,
       message: 'Error updating order status',

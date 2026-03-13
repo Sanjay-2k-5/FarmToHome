@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const Product = require('../models/Product');
 const Order = require('../models/Order');
+const Sale = require('../models/Sale');
 
 // @desc    Get available user roles
 // @route   GET /api/admin/roles
@@ -9,7 +10,7 @@ exports.getRoles = async (req, res) => {
   try {
     // Get roles from the User model schema
     const roleValues = User.schema.path('role').enumValues;
-    
+
     // Define role labels and colors
     const roleConfig = {
       user: { label: 'User', color: 'secondary' },
@@ -18,14 +19,14 @@ exports.getRoles = async (req, res) => {
       delivery: { label: 'Delivery', color: 'info' },
       admin: { label: 'Admin', color: 'danger' }
     };
-    
+
     // Map roles to include additional info
     const roles = roleValues.map(role => ({
       value: role,
       label: roleConfig[role]?.label || role.charAt(0).toUpperCase() + role.slice(1),
       color: roleConfig[role]?.color || 'light'
     }));
-    
+
     res.json(roles);
   } catch (error) {
     console.error('Error fetching roles:', error);
@@ -39,25 +40,25 @@ exports.getRoles = async (req, res) => {
 exports.getStats = async (req, res) => {
   try {
     console.log('Fetching admin stats...');
-    
+
     // Get all users count (excluding admins)
     const [userCount, productCount, salesAgg, activeUsers] = await Promise.all([
       User.countDocuments({ role: { $ne: 'admin' } }), // Count all non-admin users
       Product.countDocuments({ isActive: true }), // Only count active products
       Order.aggregate([
-        { 
+        {
           $match: { status: 'delivered' } // Only count delivered orders for revenue
         },
         {
           $group: {
             _id: null,
-            totalRevenue: { $sum: '$totalAmount' },
+            totalRevenue: { $sum: '$total' },
             orderCount: { $sum: 1 },
             totalItems: { $sum: { $size: '$items' } }
           }
         }
       ]),
-      User.countDocuments({ 
+      User.countDocuments({
         lastActive: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }, // Active in last 30 days
         role: { $ne: 'admin' }
       })
@@ -65,10 +66,10 @@ exports.getStats = async (req, res) => {
 
     console.log('Stats query results:', { userCount, productCount, salesAgg, activeUsers });
 
-    const salesData = salesAgg[0] || { 
-      totalRevenue: 0, 
-      orderCount: 0, 
-      totalItems: 0 
+    const salesData = salesAgg[0] || {
+      totalRevenue: 0,
+      orderCount: 0,
+      totalItems: 0
     };
 
     const stats = {
@@ -151,16 +152,16 @@ exports.getProductStats = async (req, res) => {
     const totalProducts = await Product.countDocuments();
     // Calculate percentage change (example: +5% from last month)
     const lastMonthCount = await Product.countDocuments({
-      createdAt: { 
+      createdAt: {
         $gte: new Date(new Date().setMonth(new Date().getMonth() - 1)),
         $lt: new Date()
       }
     });
-    
-    const change = lastMonthCount > 0 
+
+    const change = lastMonthCount > 0
       ? `+${Math.round(((totalProducts - lastMonthCount) / lastMonthCount) * 100)}%`
       : '0%';
-      
+
     res.json({ total: totalProducts, change });
   } catch (error) {
     console.error('Error fetching product stats:', error);
@@ -179,13 +180,13 @@ exports.getUserStats = async (req, res) => {
     const activeUsers = await User.countDocuments({ role: { $ne: 'admin' } });
     const lastMonthCount = await User.countDocuments({
       role: { $ne: 'admin' },
-      createdAt: { 
+      createdAt: {
         $gte: new Date(new Date().setMonth(new Date().getMonth() - 1)),
         $lt: new Date()
       }
     });
 
-    const change = lastMonthCount > 0 
+    const change = lastMonthCount > 0
       ? `+${Math.round(((activeUsers - lastMonthCount) / lastMonthCount) * 100)}%`
       : '0%';
 
@@ -205,7 +206,7 @@ exports.getRevenueStats = async (req, res) => {
   try {
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
-    
+
     const monthlyRevenue = await Order.aggregate([
       {
         $match: {
@@ -244,11 +245,11 @@ exports.getRevenueStats = async (req, res) => {
 
     const currentMonthRevenue = monthlyRevenue[0]?.total || 0;
     const prevMonthRevenue = lastMonthRevenue[0]?.total || 0;
-    
+
     const change = prevMonthRevenue > 0
       ? `${currentMonthRevenue >= prevMonthRevenue ? '+' : ''}${Math.round(((currentMonthRevenue - prevMonthRevenue) / prevMonthRevenue) * 100)}%`
       : '0%';
-    
+
     res.json({ currentMonth: currentMonthRevenue, change });
   } catch (error) {
     console.error('Error fetching revenue stats:', error);
@@ -264,16 +265,16 @@ exports.getOrderStats = async (req, res) => {
     const pendingOrders = await Order.countDocuments({ status: 'pending' });
     const lastMonthPending = await Order.countDocuments({
       status: 'pending',
-      createdAt: { 
+      createdAt: {
         $gte: new Date(new Date().setMonth(new Date().getMonth() - 1)),
         $lt: new Date()
       }
     });
-    
+
     const change = lastMonthPending > 0
       ? `${pendingOrders >= lastMonthPending ? '+' : ''}${Math.round(((pendingOrders - lastMonthPending) / lastMonthPending) * 100)}%`
       : '0%';
-    
+
     res.json({ pending: pendingOrders, change });
   } catch (error) {
     console.error('Error fetching order stats:', error);
@@ -349,6 +350,40 @@ exports.getUsersDetailed = async (req, res) => {
     });
 
     res.json({ users: result });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Update user (admin only)
+// @route   PUT /api/admin/users/:id
+// @access  Private/Admin
+exports.updateUser = async (req, res) => {
+  try {
+    const { role, isActive } = req.body;
+    const updates = {};
+
+    if (role) updates.role = role;
+    if (typeof isActive === 'boolean') updates.isActive = isActive;
+
+    const user = await User.findByIdAndUpdate(req.params.id, updates, { new: true });
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({
+      message: 'User updated successfully',
+      user: {
+        _id: user._id,
+        fname: user.fname,
+        lname: user.lname,
+        email: user.email,
+        role: user.role,
+        isActive: user.isActive
+      }
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });

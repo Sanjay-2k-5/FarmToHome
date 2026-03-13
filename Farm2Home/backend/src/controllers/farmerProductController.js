@@ -1,6 +1,4 @@
 const Product = require('../models/Product');
-const path = require('path');
-const fs = require('fs');
 
 // @desc    Get all products (for farmer's view)
 // @route   GET /api/farmer/products
@@ -38,10 +36,9 @@ exports.getFarmerProducts = async (req, res) => {
 exports.createProduct = async (req, res) => {
   try {
     console.log('Request body:', req.body);
-    console.log('Request files:', req.file);
     
     // Parse form data
-    const { name, description, price, stock, category } = req.body;
+    const { name, description, price, stock, category, imageUrl } = req.body;
     
     // Validate required fields
     if (!name || !price || !stock || !category) {
@@ -84,23 +81,9 @@ exports.createProduct = async (req, res) => {
       updatedAt: new Date()
     };
 
-    // Handle file upload if exists
-    if (req.file) {
-      // Ensure the uploads directory exists
-      const uploadDir = path.join(__dirname, '../../public/uploads');
-      if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true });
-      }
-      
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-      const ext = path.extname(req.file.originalname);
-      const filename = `product-${uniqueSuffix}${ext}`;
-      const filePath = path.join(uploadDir, filename);
-      
-      // Move the file to the uploads directory
-      await fs.promises.rename(req.file.path, filePath);
-      
-      productData.imageUrl = `/uploads/${filename}`;
+    // Handle image URL if provided
+    if (imageUrl && imageUrl.trim()) {
+      productData.imageUrl = imageUrl.trim();
     }
 
     console.log('Creating product with data:', productData);
@@ -130,23 +113,41 @@ exports.createProduct = async (req, res) => {
 // @access  Private/Admin,Farmer
 exports.deleteProduct = async (req, res) => {
   try {
-  const product = await Product.findById(req.params.id);
+    const product = await Product.findById(req.params.id);
 
-  if (!product) {
-    res.status(404);
-    throw new Error('Product not found');
-  }
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
 
-  // Only allow deletion if user is admin or the product's owner
-  if (product.farmer.toString() !== req.user.id && req.user.role !== 'admin') {
-    res.status(401);
-    throw new Error('Not authorized to delete this product');
-  }
+    // Check if farmer field exists, if not reject
+    if (!product.farmer) {
+      return res.status(400).json({
+        success: false,
+        message: 'Product has no farmer assigned'
+      });
+    }
 
-    await product.remove();
+    // Only allow deletion if user is admin or the product's owner
+    // Use req.user._id (from auth middleware) and convert both to strings for comparison
+    const productFarmerId = product.farmer.toString();
+    const userId = req.user._id.toString();
+    
+    if (productFarmerId !== userId && req.user.role !== 'admin') {
+      return res.status(401).json({
+        success: false,
+        message: 'Not authorized to delete this product'
+      });
+    }
+
+    // Delete the product using findByIdAndDelete instead of deprecated remove()
+    await Product.findByIdAndDelete(req.params.id);
 
     res.status(200).json({
       success: true,
+      message: 'Product deleted successfully',
       data: {}
     });
   } catch (error) {

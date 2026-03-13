@@ -4,11 +4,11 @@ const crypto = require('crypto');
 
 const generateToken = (user) => {
   return jwt.sign(
-    { 
+    {
       id: user._id,
-      role: user.role 
-    }, 
-    process.env.JWT_SECRET, 
+      role: user.role
+    },
+    process.env.JWT_SECRET,
     { expiresIn: '30d' }
   );
 };
@@ -19,7 +19,7 @@ const generateToken = (user) => {
 exports.register = async (req, res) => {
   try {
     const { fname, lname, email, password, role } = req.body;
-    
+
     console.log('Registration request received:', { fname, lname, email, role });
 
     let user = await User.findOne({ email });
@@ -31,15 +31,15 @@ exports.register = async (req, res) => {
     // Ensure the role is one of the allowed values
     const allowedRoles = ['user', 'admin', 'farmer', 'delivery'];
     const userRole = allowedRoles.includes(role) ? role : 'user';
-    
+
     console.log('Creating user with role:', userRole);
-    
-    user = await User.create({ 
-      fname, 
-      lname, 
-      email, 
-      password, 
-      role: userRole 
+
+    user = await User.create({
+      fname,
+      lname,
+      email,
+      password,
+      role: userRole
     });
 
     const responseData = {
@@ -50,7 +50,7 @@ exports.register = async (req, res) => {
       role: user.role,
       token: generateToken(user),
     };
-    
+
     console.log('Registration successful, sending response:', responseData);
     res.status(201).json(responseData);
   } catch (err) {
@@ -64,13 +64,18 @@ exports.register = async (req, res) => {
 // @access  Public
 exports.login = async (req, res) => {
   try {
-    const { email, password } = req.body;
-    console.log('Login attempt for email:', email);
+    const { email, password, role } = req.body;
+    console.log('Login attempt for email:', email, 'Role:', role);
 
     const user = await User.findOne({ email }).select('+password');
     if (!user) {
       console.log('Login failed: User not found', { email });
       return res.status(401).json({ message: 'Invalid email or password' });
+    }
+
+    if (role && user.role !== role) {
+      console.log(`Login failed: Role mismatch. Expected ${role}, got ${user.role}`);
+      return res.status(401).json({ message: 'Access denied. Please ensure you select the correct role for your account.' });
     }
 
     const isMatch = await user.comparePassword(password);
@@ -87,7 +92,7 @@ exports.login = async (req, res) => {
       role: user.role,
       token: generateToken(user),
     };
-    
+
     console.log('Login successful, sending response:', responseData);
     res.json(responseData);
   } catch (err) {

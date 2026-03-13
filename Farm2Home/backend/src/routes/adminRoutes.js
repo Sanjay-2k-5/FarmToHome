@@ -4,6 +4,7 @@ const {
   getStats, 
   getSalesSeries, 
   getUsersDetailed,
+  updateUser,
   getProductStats,
   getUserStats,
   getRevenueStats,
@@ -20,6 +21,7 @@ router.use(protect, authorize('admin'));
 router.get('/stats', getStats);
 router.get('/sales', getSalesSeries);
 router.get('/users', getUsersDetailed);
+router.put('/users/:id', updateUser);
 router.get('/roles', getRoles);
 
 // Statistics routes
