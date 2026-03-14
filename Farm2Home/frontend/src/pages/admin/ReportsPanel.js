@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, Form, Spinner, Alert } from 'react-bootstrap';
 import api from '../../services/api';
 
@@ -10,7 +10,7 @@ const ReportsPanel = () => {
   const [reportData, setReportData] = useState([]);
   const [error, setError] = useState('');
 
-  const loadReports = async () => {
+  const loadReports = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
@@ -50,11 +50,11 @@ const ReportsPanel = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [range, reportType]);
 
   useEffect(() => {
     loadReports();
-  }, [range, reportType]);
+  }, [loadReports]);
 
   const renderChart = () => {
     if (!reportData.length) return null;

@@ -8,7 +8,6 @@ import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Home from "./routes/Home";
-import Blog from "./routes/Blog";
 import Profile from "./routes/Profile";
 import ProductPage from "./routes/ProductPage";
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -77,7 +76,6 @@ function App() {
                   <Route path="/unauthorized" element={<Unauthorized />} />
                   <Route path="/cart" element={<CartPage />} />
                   <Route path="/home" element={<Home />} />
-                  <Route path="/blog" element={<Blog />} />
                   <Route path="/products" element={<ProductPage />} />
                   
                   {/* Protected Routes */}

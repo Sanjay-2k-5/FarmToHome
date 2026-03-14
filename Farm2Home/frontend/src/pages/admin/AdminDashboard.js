@@ -6,6 +6,7 @@ import UsersPanel from './UsersPanel';
 import RevenuePanel from './RevenuePanel';
 import ReportsPanel from './ReportsPanel';
 import ProductApprovals from './ProductApprovals';
+import PricePredictor from '../farmer/PricePredictor';
 import api from '../../services/api';
 
 const AdminDashboard = () => {
@@ -222,6 +223,20 @@ const AdminDashboard = () => {
         >
           <div className="mt-3">
             <ReportsPanel />
+          </div>
+        </Tab>
+        
+        <Tab
+          eventKey="predictor"
+          title={
+            <span>
+              <FaChartLine className="me-2" />
+              AI Price Predictor
+            </span>
+          }
+        >
+          <div className="mt-3">
+            <PricePredictor />
           </div>
         </Tab>
       </Tabs>

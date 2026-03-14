@@ -224,9 +224,7 @@ export const CartProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('Error updating cart quantity:', error);
-      setError(error.response?.data?.message || error.message || 'Failed to update quantity');
       throw error; // Re-throw to allow handling in the component
-      return false;
     }
   }, [isAuthenticated, user?._id, items, loadCart]);
 

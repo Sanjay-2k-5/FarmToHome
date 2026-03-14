@@ -16,9 +16,9 @@ const HeroImg = () => {
           </Link>
         </div>
         <div>
-          <Link to='/Blog' className='btn btn-light'>
+          <Link to='/cart' className='btn btn-light'>
             {" "}
-            BLOG{" "}
+            CART{" "}
           </Link>
         </div>
       </div>

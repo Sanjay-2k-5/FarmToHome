@@ -53,7 +53,7 @@ const Navbar = () => {
   return (
     <nav className={scrolled ? "navbar scrolled" : "navbar"}>
       <div className="navbar-container">
-        <Link to={isUserAdmin ? "/admin" : "/"} className="navbar-logo" onClick={closeMobileMenu}>
+        <Link to={isUserAdmin ? "/admin" : "/home"} className="navbar-logo" onClick={closeMobileMenu}>
           <FaLeaf className="navbar-icon" /> Farm2Home
         </Link>
 
@@ -66,9 +66,9 @@ const Navbar = () => {
         <ul className={click || isUserAdmin ? "nav-menu active" : "nav-menu"}>
           {!isUserAdmin && !isAuthPage && (
             <>
-              {(!isAuthenticated() || (user?.role !== 'delivery' && user?.role !== 'farmer')) && (
+              {!isAuthenticated() && (
                 <li className="nav-item">
-                  <Link to="/" className="nav-links" onClick={closeMobileMenu}>
+                  <Link to="/home" className="nav-links" onClick={closeMobileMenu}>
                     <FaHome className="nav-icon" /> Home
                   </Link>
                 </li>
@@ -104,13 +104,6 @@ const Navbar = () => {
                   <Link to="/cart" className="nav-links" onClick={closeMobileMenu}>
                     <FaShoppingCart className="nav-icon" /> Cart
                     {itemCount > 0 && <span className="badge bg-primary ms-1">{itemCount}</span>}
-                  </Link>
-                </li>
-              )}
-              {(!isAuthenticated() || (user?.role !== 'delivery' && user?.role !== 'farmer')) && (
-                <li className="nav-item">
-                  <Link to="/blog" className="nav-links" onClick={closeMobileMenu}>
-                    <FaBlog className="nav-icon" /> Blog
                   </Link>
                 </li>
               )}

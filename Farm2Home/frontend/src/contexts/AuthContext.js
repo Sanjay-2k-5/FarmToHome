@@ -40,7 +40,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     initializeAuth();
-  }, []); // Remove fetchUser from dependencies to prevent re-renders
+  }, [fetchUser]);
 
   // Register user
   const register = async (userData) => {

@@ -2,6 +2,8 @@ const Order = require('../models/Order');
 const Product = require('../models/Product');
 const Revenue = require('../models/Revenue');
 const mongoose = require('mongoose');
+const { spawn } = require('child_process');
+const path = require('path');
 
 // @desc    Get orders for farmer's products
 // @route   GET /api/orders/farmer
@@ -145,3 +147,77 @@ exports.updateOrderStatus = async (req, res) => {
     }
   }
 };
+
+// @desc    Predict crop price using real trained AI/ML model (Python scikit-learn)
+// @route   POST /api/farmer/predict-price
+// @access  Private/Farmer
+exports.predictCropPrice = async (req, res) => {
+  try {
+    const { cropType, seedDate, yieldDate, landArea } = req.body;
+    
+    if (!cropType || !seedDate || !yieldDate) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide cropType, seedDate, and yieldDate'
+      });
+    }
+
+    // Path to the Python ML script
+    const pythonScript = path.join(__dirname, '../../ml/predict_model.py');
+    
+    // Spawn python process
+    const pythonProcess = spawn('python3', [pythonScript, cropType, yieldDate]);
+    
+    let pythonOutput = '';
+    let pythonError = '';
+
+    pythonProcess.stdout.on('data', (data) => {
+      pythonOutput += data.toString();
+    });
+
+    pythonProcess.stderr.on('data', (data) => {
+      pythonError += data.toString();
+    });
+
+    pythonProcess.on('close', (code) => {
+      if (code !== 0) {
+        console.error('Python ML script failed:', pythonError);
+        return res.status(500).json({
+          success: false,
+          message: 'Error generating ML prediction from engine'
+        });
+      }
+
+      try {
+        const result = JSON.parse(pythonOutput);
+        if (result.success) {
+          res.json({
+            success: true,
+            data: {
+              ...result.data,
+              cropType,
+              message: 'Prediction generated successfully using Random Forest scikit-learn model.'
+            }
+          });
+        } else {
+          res.status(500).json({ success: false, message: result.message });
+        }
+      } catch (parseError) {
+        console.error('Failed to parse Python ML output:', parseError, 'Raw Output:', pythonOutput);
+        res.status(500).json({
+          success: false,
+          message: 'Failed to process ML prediction data'
+        });
+      }
+    });
+
+  } catch (error) {
+    console.error('Error generating price prediction:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error generating prediction',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+

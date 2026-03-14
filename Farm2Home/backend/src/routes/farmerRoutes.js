@@ -3,7 +3,8 @@ const router = express.Router();
 const { protect, authorize } = require('../middleware/auth');
 const { 
   getFarmerOrders, 
-  updateOrderStatus 
+  updateOrderStatus,
+  predictCropPrice
 } = require('../controllers/farmerController');
 const { 
   getFarmerProducts,
@@ -18,6 +19,9 @@ router.use(authorize('farmer', 'admin'));
 // Order management - Farmer specific routes
 router.get('/my-orders', getFarmerOrders);
 router.put('/update-order-status/:id', updateOrderStatus);
+
+// AI/ML Price Prediction
+router.post('/predict-price', authorize('farmer', 'admin'), predictCropPrice);
 
 // Product management - Farmer specific routes
 router.route('/products')

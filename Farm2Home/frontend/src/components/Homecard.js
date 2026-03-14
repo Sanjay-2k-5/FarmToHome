@@ -17,8 +17,8 @@ const Homecard = () => {
               <Link to='/products'>
                 <button className='normal'>Products</button>
               </Link>
-              <Link to='/blog'>
-                <button className='normal'>Blog</button>
+              <Link to='/cart'>
+                <button className='normal'>Cart</button>
               </Link>
             </div>
           </div>
